@@ -1,0 +1,5 @@
+reward: [original] 
+pool: [seed] # after running with seed pool, to run with seed_and_random and seed_and_random pools
+gamma: [0, 0.1, 0.2, 0.3, 0.4, 0.5]
+softmax_temp: [0.5, 0.8, 1, 1.2, 1.5] 
+randomness: [0.5, 1.2, 2, 3]

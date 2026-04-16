@@ -1,0 +1,30 @@
+model:
+  # Local Hugging Face hub snapshot dirs (populate once via `huggingface-cli download` or a normal Hub run).
+  # Override per machine: export HF_LOCAL_MODEL_DIR / HF_LOCAL_TOKENIZER_DIR before launch.
+  checkpoint_path: "/mnt/weka/gsimonyan/models/hub/models--tigranfah--Llama-3-1.3B-4e5eec/snapshots/47545413b6928b0847b18585d4deac656a7f028c"
+  tokenizer_path: "/mnt/weka/gsimonyan/models/hub/models--tigranfah--Llama-3.2-chem-1B-v2/snapshots/80951980760ef66320c24b8d549aa61e189253ef"
+  mol_tags: ["[SMILES]", "[/SMILES]"]
+  pad_token: <|finetune_right_pad_id|>
+  sim_tags: ["[SIMILAR]", "[/SIMILAR]"]
+  device: cuda
+  dtype: fp32 # bf16 / fp32
+
+generation:
+  max_new_tokens: 500
+  temperature: 1.0
+  do_sample: true
+  repetition_penalty: 1.01
+  num_return_sequences: 1
+
+genetic:
+  pool_size: 30
+  num_prompts: 100
+  num_similars: 1
+  representation: "smiles"
+  sim_vals: [0.6, 0.9]
+
+oracle:
+  name: "geam.parp1"
+  max_calls: 3000
+  log_dir: "results/genetic/llama3_380m/geam.parp1"
+  reward_type: "geam"

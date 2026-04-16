@@ -1,0 +1,14 @@
+seed: [1, 2, 3, 4, 5]
+model_path: model.ckpt
+oracle_name: [parp1, fa7, 5ht1b, braf, jak2]
+num_gen: 100
+num_iter: 30
+softmax_temp: 1
+randomness: 2
+gamma: 0.2
+w: 2
+population_size: 100
+min_mol_size: 20
+max_mol_size: 40
+warmup: 200
+hit_reward: true

@@ -1,0 +1,8 @@
+oracle:
+  components:
+    - name: [hit, geam] 
+goal_directed_generation:
+  hallucinated_memory:
+    execute_hallucinated_memory: [false, true]
+  reinforcement_learning:
+    sigma: [64.0, 128.0, 256.0, 512.0]

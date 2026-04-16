@@ -1,0 +1,15 @@
+seed: [0, 1, 2]
+model_path: model.ckpt
+oracle_name: [6nzp_7uyt, 6nzp_5ut5, 6nzp_7uyw]
+num_gen: 100
+num_iter: 30
+softmax_temp: 1.2
+randomness: 2
+gamma: 0
+w: 2
+population_size: 100
+min_mol_size: 20
+max_mol_size: 40
+warmup: 200 
+reward: original
+pool: random

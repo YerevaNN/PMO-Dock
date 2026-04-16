@@ -1,0 +1,22 @@
+[model]
+checkpoint_path = "/nfs/h100/raid/chem/checkpoints/hf/yerevann/Llama-3.2-1B/273fe38764a44b0db611e262/step-20000"
+tokenizer_path = "/nfs/h100/raid/chem/checkpoints/tokenizers/Llama-3.2-chem-1B-v1"
+device = "cuda"
+dtype = "fp32" # bf16 / fp32
+gen_batch_size = 100000 # put a large number if batched generation is not needed
+
+[generation]
+max_new_tokens = 200
+temperature = 1.0
+do_sample = true
+repetition_penalty = 1.01
+num_return_sequences = 1
+
+[genetic]
+pool_size = 40
+num_prompts = 100
+num_similars = 1
+representation = "safe"
+mol_tags = ["[SAFE]", "[/SAFE]"]
+sim_tags = ["[SIMILAR]", "[/SIMILAR]"]
+sim_vals = [0.4, 0.9]

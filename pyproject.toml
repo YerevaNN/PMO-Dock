@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pmo-dock"
+version = "0.1.0"
+description = "PMO-Dock: benchmark evaluators (property computers, docking, assets) for molecular optimization experiments."
+requires-python = ">=3.10"
+license = "Apache-2.0"
+readme = "README.md"
+
+dependencies = [
+    # Benchmark runtime dependencies (pip-installable).
+    # Note: RDKit/OpenBabel are typically installed via conda; see README/docs.
+    "numpy>=1.22",
+    "requests>=2.28",
+    "pandas>=1.5",
+    "matplotlib>=3.7",
+    "flask>=2.3",
+]
+
+[project.optional-dependencies]
+# Minimal deps for benchmark computers that use NumPy / HTTP.
+# RDKit and OpenBabel are usually installed via conda; add them to your env separately for local docking.
+benchmark-core = [
+    "numpy>=1.22",
+    "requests>=2.28",
+]
+
+# Only the installable library: algorithm folders (saturn, genetic_chemalactica, …) stay in the repo
+# as runnable scripts but are not shipped as top-level packages in the wheel unless listed here.
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["benchmark*"]
+
+# Ship small assets with the wheel/sdist. Large receptor grids live under benchmark.docking_oracle.
+[tool.setuptools.package-data]
+benchmark = ["actives.csv"]
+"benchmark.docking_oracle" = [
+    "docking_grids/*.pdbqt",
+    "benchmark/**/*.csv"
+]
