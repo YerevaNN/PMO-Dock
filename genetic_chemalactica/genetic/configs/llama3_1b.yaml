@@ -1,8 +1,6 @@
 model:
-  # Local Hugging Face hub snapshot dirs (populate once via `huggingface-cli download` or a normal Hub run).
-  # Override per machine: export HF_LOCAL_MODEL_DIR / HF_LOCAL_TOKENIZER_DIR before launch.
-  checkpoint_path: "/mnt/weka/gsimonyan/models/hub/models--tigranfah--Llama-3-1.3B-4e5eec/snapshots/47545413b6928b0847b18585d4deac656a7f028c"
-  tokenizer_path: "/mnt/weka/gsimonyan/models/hub/models--tigranfah--Llama-3.2-chem-1B-v2/snapshots/80951980760ef66320c24b8d549aa61e189253ef"
+  checkpoint_path: "tigranfah/chemllama-1b"
+  tokenizer_path: "tigranfah/chemllama-1b"
   mol_tags: ["[SMILES]", "[/SMILES]"]
   pad_token: <|finetune_right_pad_id|>
   sim_tags: ["[SIMILAR]", "[/SIMILAR]"]

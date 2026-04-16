@@ -5,13 +5,16 @@ Expected service contract:
 - POST {service_url}/predict/{target} with JSON {"smiles": [...], "seed"?: int}
 - Response JSON contains {"scores": [...]} where each score is a docking affinity (typically negative).
 - The service uses 99.9 to indicate a per-molecule docking failure (mapped to 0.0 by this client).
+
+Callers typically resolve the service base URL from the process environment variable ``DOCKING_VINA_URL``
+or pass an explicit URL; see ``benchmark.computers.property_computers.compute_quickvina_docking_score``.
 """
 
 from __future__ import annotations
 
 import logging
 from time import sleep
-from typing import List, Union, Tuple
+from typing import List, Tuple, Union
 
 try:
     import requests

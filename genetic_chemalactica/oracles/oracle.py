@@ -86,8 +86,6 @@ def select_oracle(
             score_computer = partial(hit_similarity_reward, sigmas=sigmas, hit_ranges=hit_ranges)
         else:
             raise ValueError(f"Invalid reward type {reward_type}")
-    elif task_name.startswith("tox."):
-        score_computer = partial(hit_reward, sigmas=sigmas, hit_ranges=hit_ranges)
     elif task_name.startswith("lead."):
         score_computer = partial(hit_docking_score_reward, sigmas=sigmas, hit_ranges=hit_ranges)
     elif task_name.startswith("lead_no_sim."):

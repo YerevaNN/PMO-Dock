@@ -256,7 +256,7 @@ class GenMolOpt():
         if self.args.get('oracle_url') is not None:
             oracle_service_url = self.args.get('oracle_url')
         else:
-            oracle_service_url = os.environ.get('ORACLE_SERVICE_URL')
+            oracle_service_url = os.environ.get("DOCKING_VINA_URL")
         if oracle_service_url:
             self.predictor = DockingVinaClient(oracle_service_url, self.args.oracle_name)
         else:

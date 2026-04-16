@@ -108,7 +108,7 @@ def run_genetic(cfg_path):
     ]
 
     env = os.environ.copy()
-    # VINA_SERVICE_URL is set by the parent job environment; keep it as-is.
+    # DOCKING_VINA_URL may be set by the parent job environment; run.py also sets it from config when present.
 
     genetic_process = subprocess.Popen(
         genetic_command,
@@ -218,7 +218,7 @@ if __name__ == "__main__":
         "--vina_url",
         required=False,
         type=str,
-        help="URL of the vina/oracle service (sets VINA_SERVICE_URL in subprocess env)"
+        help="URL of the docking Vina HTTP service (written to config; run.py exports DOCKING_VINA_URL for workers)",
     )
     parser.add_argument(
         "--max_oracle_calls",
@@ -358,7 +358,7 @@ if __name__ == "__main__":
                 seed_config_dict["oracle"]["log_dir"] = seed_log_dir
                 seed_config_dict["oracle"]["reward_type"] = args.reward_type
                 
-                # Set vina_url if provided (will be passed as VINA_SERVICE_URL in subprocess env)
+                # Set vina_url if provided (run.py sets DOCKING_VINA_URL from config for subprocess workers)
                 if args.vina_url is not None:
                     seed_config_dict["vina_url"] = args.vina_url
                 # Device assignment: always round-robin over visible GPUs for each generated config.

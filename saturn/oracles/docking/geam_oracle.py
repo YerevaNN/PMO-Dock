@@ -89,10 +89,10 @@ class GEAMOracle(OracleComponent):
         logging.debug("GEAMOracle target=%s exhaustiveness=%s", self.target, self.vina_exhaustiveness)
         # self.vina_exhaustiveness = parameters.vina_exhaustiveness
         # self.vina_seed = parameters.vina_seed
-        # Check if oracle service URL is configured (from specific_parameters or env var)
+        # Check if docking Vina service URL is configured (from specific_parameters or DOCKING_VINA_URL)
         oracle_service_url = parameters.specific_parameters.get("oracle_url")
         if oracle_service_url is None:
-            oracle_service_url = os.environ.get('ORACLE_SERVICE_URL')
+            oracle_service_url = os.environ.get("DOCKING_VINA_URL")
         # Ensure oracle_service_url is a string if it exists
         if oracle_service_url and isinstance(oracle_service_url, list):
             oracle_service_url = oracle_service_url[0] if len(oracle_service_url) > 0 else None
@@ -181,10 +181,10 @@ class HITOracle(OracleComponent):
         else:
             target = parameters.specific_parameters["target"] 
         self.target = target if isinstance(target, str) else target[0] if isinstance(target, list) and len(target) > 0 else str(target)
-        # Check if oracle service URL is configured (from specific_parameters or env var)
+        # Check if docking Vina service URL is configured (from specific_parameters or DOCKING_VINA_URL)
         oracle_service_url = parameters.specific_parameters.get("oracle_url")
         if oracle_service_url is None:
-            oracle_service_url = os.environ.get('ORACLE_SERVICE_URL')
+            oracle_service_url = os.environ.get("DOCKING_VINA_URL")
         # Ensure oracle_service_url is a string if it exists
         if oracle_service_url and isinstance(oracle_service_url, list):
             oracle_service_url = oracle_service_url[0] if len(oracle_service_url) > 0 else None

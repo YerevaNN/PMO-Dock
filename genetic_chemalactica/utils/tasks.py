@@ -40,12 +40,6 @@ def select_sigma(prop_name: str):
         "RINGCOUNT": coef * 5,
         "NUMAROMATICRINGS": coef * 5,
 
-        # Toxometris properties
-        "SOLUBILITY": coef * 5,
-        "SOLUBILITY_REL": coef * 0.5,
-        "TOXICITY": coef * 1,
-        "TOXICITY_REL": coef * 0.5,
-
         # Binding predictors
         "JNK3": coef * 1,
         "DRD2": coef * 1,
@@ -107,24 +101,6 @@ def task_name2grpo_prompt(task_name: str, start_token: str, ranged: bool=True):
             f"[QED]{randfloat(0.5, 1.0):.2f}[/QED]"
             f"[SAS]{randfloat(1.0, 5.0):.2f}[/SAS]"
         ),
-        "tox.DES": (
-            f"[SIMILAR]{perindopril_smiles} {randfloat(0.4, 1.0):.2f}[/SIMILAR]"
-            f"[SAS]{randfloat(1.0, 5.0):.2f}[/SAS]"
-            f"[PROPERTY]solubility {randfloat(-4, 0.5):.2f}[/PROPERTY]"
-            f"[PROPERTY]solubility_rel {randfloat(0.6, 1.0):.2f}[/PROPERTY]"
-            f"[PROPERTY]toxicity {randfloat(0.0, 0.0):.2f}[/PROPERTY]"
-            f"[PROPERTY]toxicity_rel {randfloat(0.6, 1.0):.2f}[/PROPERTY]"
-        ),
-        "tox.solubility": (
-            f"[SIMILAR]{perindopril_smiles} {randfloat(0.4, 1.0):.2f}[/SIMILAR]"
-            f"[PROPERTY]solubility {randfloat(-4, 0.5):.2f}[/PROPERTY]"
-            f"[PROPERTY]solubility_rel {randfloat(0.6, 1.0):.2f}[/PROPERTY]"
-        ),
-        "tox.toxicity": (
-            f"[SIMILAR]{perindopril_smiles} {randfloat(0.4, 1.0):.2f}[/SIMILAR]"
-            f"[PROPERTY]toxicity {randfloat(0.0, 0.0):.2f}[/PROPERTY]"
-            f"[PROPERTY]toxicity_rel {randfloat(0.6, 1.0):.2f}[/PROPERTY]"
-        )
     }
 
     task_name2prompt = {
@@ -176,24 +152,6 @@ def task_name2grpo_prompt(task_name: str, start_token: str, ranged: bool=True):
             f"[DOCKING_SCORE][10.00,20.00][/DOCKING_SCORE]"
             f"[QED][0.50,1.00][/QED]"
             f"[SAS][1.00,5.00][/SAS]"
-        ),
-        "tox.DES": (
-            f"[SIMILAR]{perindopril_smiles} [0.40,1.00][/SIMILAR]"
-            f"[SAS][1.00,5.00][/SAS]"
-            f"[SOLUBILITY][-4.00,0.50][/SOLUBILITY]"
-            f"[SOLUBILITY_REL][0.60,1.00][/SOLUBILITY_REL]"
-            f"[TOXICITY][0.00,0.00][/TOXICITY]"
-            f"[TOXICITY_REL][0.60,1.00][/TOXICITY_REL]"
-        ),
-        "tox.solubility": (
-            f"[SIMILAR]{perindopril_smiles} [0.40,1.00][/SIMILAR]"
-            f"[SOLUBILITY][-4.00,0.50][/SOLUBILITY]"
-            f"[SOLUBILITY_REL][0.60,1.00][/SOLUBILITY_REL]"
-        ),
-        "tox.toxicity": (
-            f"[SIMILAR]{perindopril_smiles} [0.40,1.00][/SIMILAR]"
-            f"[TOXICITY][0.00,0.00][/TOXICITY]"
-            f"[TOXICITY_REL][0.60,1.00][/TOXICITY_REL]"
         ),
         "lead.parp1_04_0": (
             f"[SIMILAR]{parp1_0} [0.40,1.00][/SIMILAR]"
@@ -473,11 +431,6 @@ def task_name2computer_names(task_name: str):
         "dock.fa7": ["DOCKING.fa7", "QED", "SAS"],
         "dock.5ht1b": ["DOCKING.5ht1b", "QED", "SAS"],
 
-        # toxometris oracles
-        "tox.DES": ["SIMILAR.CC/C(=C(/CC)c1ccc(O)cc1)c1ccc(O)cc1", "SAS", "SOLUBILITY", "SOLUBILITY_REL", "TOXICITY", "TOXICITY_REL"],
-        "tox.solubility": ["SOLUBILITY", "SOLUBILITY_REL", "SIMILAR.CC/C(=C(/CC)c1ccc(O)cc1)c1ccc(O)cc1"],
-        "tox.toxicity": ["TOXICITY", "TOXICITY_REL", "SIMILAR.CC/C(=C(/CC)c1ccc(O)cc1)c1ccc(O)cc1"],
-        
         # lead oracles
         "lead.parp1_04_0": ["DOCKING.parp1", f"SIMILAR.{parp1_0}", "QED", "SAS"],
         "lead.parp1_04_1": ["DOCKING.parp1", f"SIMILAR.{parp1_1}", "QED", "SAS"],

@@ -6,4 +6,3 @@ breaking imports while the repo is reorganized.
 """
 
 from benchmark.docking_oracle.docking import DockingOracle  # noqa: F401
-

@@ -627,10 +627,10 @@ if __name__ == "__main__":
     cmd_args = parser.parse_args()
 
     args = OmegaConf.load(cmd_args.config_file)
-    # Set VINA_SERVICE_URL from config (vina_url written by genetic_runner) so downstream code sees it
+    # Set DOCKING_VINA_URL from config (vina_url written by genetic_runner) so docking code sees it
     vina_url = OmegaConf.select(args, "vina_url", default=None)
     if vina_url:
-        os.environ["VINA_SERVICE_URL"] = str(vina_url)
+        os.environ["DOCKING_VINA_URL"] = str(vina_url)
     search(args)
     
     

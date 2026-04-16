@@ -117,7 +117,7 @@ class GenMolOpt():
             self.oracle = Oracle(self.args.oracle_name)
         else:
             # Check if oracle service URL is configured (from env var or config)
-            oracle_service_url = os.environ.get('ORACLE_SERVICE_URL')
+            oracle_service_url = os.environ.get("DOCKING_VINA_URL")
             if oracle_service_url is None:
                 oracle_service_url = self.args.get('oracle_url')
             if oracle_service_url:

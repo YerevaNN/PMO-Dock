@@ -4,7 +4,12 @@ DEPRECATED: algorithms should import benchmark computers from `benchmark.compute
 This module remains as a thin compatibility shim.
 """
 
+import json
+import subprocess
+
 from benchmark.computers.property_computers import *  # noqa: F403
+from benchmark.docking_oracle.docking_vina_client import DockingOracleClient
+from benchmark.paths import resolve_from_project_root
 
 
 def select_prop_computer(computer_name, vina_url=None):
@@ -17,12 +22,6 @@ def select_prop_computer(computer_name, vina_url=None):
         "FORMULA": compute_formula,
         "NUMAROMATICRINGS": compute_num_aromatic_rings,
         "RINGCOUNT": compute_num_rings,
-
-        # Toxometris computers
-        "SOLUBILITY": partial(compute_toxometris_score, assay="solubility"),
-        "SOLUBILITY_REL": partial(compute_toxometris_score, assay="solubility", reliability=True),
-        "TOXICITY": partial(compute_toxometris_score, assay="ames"),
-        "TOXICITY_REL": partial(compute_toxometris_score, assay="ames", reliability=True),
 
         # Binding predictors
         "JNK3": partial(predict_binding_score, protein="jnk3"),
@@ -53,39 +52,6 @@ def compute_qed_sas_docking(rdkit_mols, target: str, vina_url=None):
     return dynamic_computer(rdkit_mols, computer_names, vina_url=vina_url)
 
 
-def compute_toxometris_score(rdkit_mols, assay, reliability=False):
-    smiles_list = [Chem.MolToSmiles(rdkit_mol) for rdkit_mol in rdkit_mols]
-    url = "https://stage.toxometris.ai/v1/gentox/predict_assay_api"
-    headers = {
-        "Authorization": f"Bearer {os.environ['TOXOMETRIS_API_KEY']}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "smiles": smiles_list,
-        "assay": assay
-    }
-    response = requests.post(url, headers=headers, json=payload).json()
-    if response["status"] != "success":
-        raise ValueError(response["message"])
-    
-    if reliability:
-        rel_scores = []
-        for score in response["data"]:
-            value = score["reliability"] if score["validity"] else 0.5
-            rel_scores.append(value)
-        return np.array(rel_scores)
-    else:
-        assay_scores = []
-        for score in response["data"]:
-            invalid_value = {
-                "solubility": -10,
-                "ames": 0.0,
-            }[assay]
-            value = score["value"] if score["validity"] else invalid_value
-            assay_scores.append(value)
-        return np.array(assay_scores)
-
-
 def geam_docking_oracle(rdkit_mols, target: str, verb: bool=True, vina_url=None):
     docking_scores = compute_quickvina_docking_score(rdkit_mols, target, verb=verb, vina_url=vina_url)
     qed_scores = compute_qed(rdkit_mols, verb=verb)
@@ -110,7 +76,7 @@ def compute_quickvina_docking_score(rdkit_mols, target: str, verb=True, vina_url
         rdkit_mols: List of RDKit molecule objects (may contain None for invalid molecules)
         target: Target protein name (e.g., 'parp1', 'fa7', '5ht1b', 'braf', 'jak2')
         verb: Verbose flag (default: True)
-        vina_url: Optional vina service URL (takes precedence over env var)
+        vina_url: Optional docking service URL (takes precedence over env DOCKING_VINA_URL)
     
     Returns:
         Array of docking scores (clipped to >= 0). Invalid molecules get score 0.0.
@@ -133,24 +99,24 @@ def compute_quickvina_docking_score(rdkit_mols, target: str, verb=True, vina_url
     # Convert valid molecules to SMILES
     smiles_list = [Chem.MolToSmiles(rdkit_mol) for rdkit_mol in valid_mols]
     
-    # Check if vina/oracle service URL is configured (parameter > env). Prefer ORACLE_SERVICE_URL; VINA_SERVICE_URL is fallback.
-    oracle_service_url = vina_url or os.environ.get("VINA_SERVICE_URL") or os.environ.get("ORACLE_SERVICE_URL")
-    logging.getLogger(__name__).info("oracle_service_url: %s (from %s)", oracle_service_url, "request param" if vina_url else "env var")
-    if oracle_service_url:
-        # Use DockingVina service - only for valid molecules
-        client = DockingVinaClient(oracle_service_url, target)
+    docking_vina_url = vina_url or os.environ.get("DOCKING_VINA_URL")
+    logging.getLogger(__name__).info(
+        "docking_vina_url: %s (from %s)",
+        docking_vina_url,
+        "request param" if vina_url else "env DOCKING_VINA_URL",
+    )
+    if docking_vina_url:
+        # Use docking HTTP service (same client as benchmark) for valid molecules only
+        client = DockingOracleClient(docking_vina_url, target)
         valid_scores = client.predict(smiles_list)
-        # Convert to numpy array and process like local predictor
         valid_scores = -np.array(valid_scores)  # Negative affinity to positive score
         valid_scores = np.clip(valid_scores, 0, None)
-        # Map valid scores back to their original positions
         scores[valid_indices] = valid_scores
     else:
-        # Use local quickvina predictor (original behavior)
+        # Use local quickvina predictor (original behavior, same as benchmark)
         predictor = quickvina_predictor(target)
         valid_scores = -np.array(predictor.predict(smiles_list))
         valid_scores = np.clip(valid_scores, 0, None)
-        # Map valid scores back to their original positions
         scores[valid_indices] = valid_scores
     
     return scores
