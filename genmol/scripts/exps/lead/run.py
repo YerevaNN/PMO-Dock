@@ -25,7 +25,7 @@ sys.path.append(genmol_root)  # for scripts module
 project_root = os.path.dirname(genmol_root)
 sys.path.insert(0, project_root)
 
-from time import time, sleep
+from time import time
 import random
 import argparse
 import pandas as pd
@@ -34,15 +34,15 @@ from rdkit import Chem
 from rdkit.Chem import DataStructs, AllChem, QED, RDConfig
 from omegaconf import OmegaConf
 
-from utils.tasks import task_name2constraints, select_sigma, guassian_modifier
+from benchmark.tasks import task_name2constraints
+from benchmark.rewards import gaussian_modifier, select_sigma
 
 from scripts.exps.lead.docking.docking import DockingVina
+from benchmark.docking_oracle.docking_vina_client import DockingVinaClient
 from genmol.sampler import Sampler
 from genmol.utils.utils_chem import cut
 sys.path.append(os.path.join(RDConfig.RDContribDir, 'SA_Score'))
 import sascorer
-import requests
-from typing import List
 import logging
 
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -104,128 +104,6 @@ def setup_logging(log_file=None):
             handler.flush()
     return logger
 
-class DockingVinaClient:
-    """HTTP client for DockingVina oracle service"""
-    
-    def __init__(self, service_url: str, target: str):
-        # Ensure service_url has a scheme (http:// or https://)
-        service_url = service_url.rstrip('/')
-        if not service_url.startswith(('http://', 'https://')):
-            service_url = f'http://{service_url}'
-        self.service_url = service_url
-        self.target = target
-        self.predict_url = f"{self.service_url}/predict/{target}"
-        
-    def predict(self, smiles_list: List[str]) -> List[float]:
-        """
-        Predict docking scores for a list of SMILES strings via HTTP request.
-        Implements retry logic: up to 5 retries with 5-minute timeout per request.
-        Returns 0.0 only for molecules where docking() computation failed (server returns 99.9).
-        Raises exception after all retries fail.
-        
-        Args:
-            smiles_list: List of SMILES strings (can be numpy array)
-            
-        Returns:
-            List of docking scores (affinities). Docking computation errors (99.9) are assigned 0.0.
-            
-        Raises:
-            requests.exceptions.RequestException: After 5 failed retry attempts
-        """
-        # Convert numpy array to list if needed (numpy arrays are not JSON serializable)
-        if isinstance(smiles_list, np.ndarray):
-            smiles_list = smiles_list.tolist()
-        elif not isinstance(smiles_list, list):
-            smiles_list = list(smiles_list)
-        
-        max_retries = 5
-        request_timeout = 300  # 5 minutes per request
-        last_exception = None
-        
-        for attempt in range(max_retries):
-            try:
-                response = requests.post(
-                    self.predict_url,
-                    json={'smiles': smiles_list},
-                    timeout=request_timeout
-                )
-                response.raise_for_status()
-                result = response.json()
-                scores = result['scores']
-                
-                # Replace any error scores (99.9) with 0.0
-                # This happens when docking() computation fails for a molecule
-                scores = [0.0 if score == 99.9 else score for score in scores]
-                
-                return scores
-                
-            except requests.exceptions.Timeout as e:
-                last_exception = e
-                if attempt < max_retries - 1:
-                    logging.warning(f"Request timeout (attempt {attempt + 1}/{max_retries}) for {self.target} "
-                                  f"at {self.predict_url}. Retrying in 2 seconds...")
-                    sleep(2)  # Wait 2 seconds before retry
-                    continue
-                else:
-                    error_msg = (f"Request timeout after {max_retries} attempts for {self.target} "
-                               f"at {self.predict_url}. All retries exhausted.")
-                    logging.error(error_msg)
-                    raise requests.exceptions.Timeout(error_msg) from e
-                    
-            except requests.exceptions.ConnectionError as e:
-                last_exception = e
-                if attempt < max_retries - 1:
-                    logging.warning(f"Connection error (attempt {attempt + 1}/{max_retries}) for {self.target} "
-                                  f"at {self.service_url}. Retrying in 2 seconds...")
-                    sleep(2)  # Wait 2 seconds before retry
-                    continue
-                else:
-                    error_msg = (f"Failed to connect to oracle service at {self.service_url} after {max_retries} attempts. "
-                               f"Please ensure the service is running and accessible. "
-                               f"Error: {e}")
-                    logging.error(error_msg)
-                    raise requests.exceptions.ConnectionError(error_msg) from e
-                    
-            except requests.exceptions.RequestException as e:
-                last_exception = e
-                # Check if response contains error information
-                if hasattr(e, 'response') and e.response is not None:
-                    try:
-                        error_data = e.response.json()
-                        if 'error' in error_data:
-                            logging.error(f"Oracle service error for {self.target} at {self.predict_url}: {error_data['error']}")
-                    except:
-                        pass
-                
-                if attempt < max_retries - 1:
-                    logging.warning(f"Request error (attempt {attempt + 1}/{max_retries}) for {self.target} "
-                                  f"at {self.predict_url}: {e}. Retrying in 2 seconds...")
-                    sleep(2)  # Wait 2 seconds before retry
-                    continue
-                else:
-                    error_msg = (f"Oracle service error after {max_retries} attempts for {self.target} "
-                               f"at {self.predict_url}: {e}")
-                    logging.error(error_msg)
-                    raise requests.exceptions.RequestException(error_msg) from e
-                    
-            except Exception as e:
-                last_exception = e
-                # Unexpected error
-                if attempt < max_retries - 1:
-                    logging.warning(f"Unexpected error (attempt {attempt + 1}/{max_retries}) for {self.target}: {e}. Retrying in 2 seconds...")
-                    sleep(2)
-                    continue
-                else:
-                    logging.error(f"Unexpected error after {max_retries} attempts for {self.target}: {e}")
-                    import traceback
-                    traceback.print_exc()
-                    raise
-        
-        # Should never reach here, but just in case
-        if last_exception:
-            raise last_exception
-        else:
-            raise RuntimeError(f"All {max_retries} retry attempts failed for {self.target} without exception.")
 
 class GenMolOpt():
     def __init__(self, args):
@@ -242,7 +120,11 @@ class GenMolOpt():
             self.start_prop = 1.0
         else:
             # Load starting molecule from actives (used for both seed and random pool)
-            df = pd.read_csv(os.path.join(script_dir, 'docking', 'actives.csv'))
+            proj_root = os.environ.get(
+                "PROJECT_ROOT",
+                os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(script_dir)))),
+            )
+            df = pd.read_csv(os.path.join(proj_root, "benchmark", "actives.csv"))
             df = df[df['target'] == self.args.oracle_name]
             self.start_smiles = df['smiles'].iloc[self.args.start_mol_idx - 1]
             start_mol = Chem.MolFromSmiles(self.start_smiles)
@@ -336,7 +218,7 @@ class GenMolOpt():
                     smiles_reward.append(1)
                 else:
                     dist = min(abs(m - rnge[0]), abs(m - rnge[1]))
-                    reward = guassian_modifier(dist, mu=0, sigma=sigma)
+                    reward = gaussian_modifier(dist, mu=0, sigma=sigma)
                     smiles_reward.append(reward)
             # Combine rewards across properties for this molecule
             if prod:

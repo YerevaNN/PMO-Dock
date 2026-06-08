@@ -14,6 +14,7 @@ from oracles.reward_aggregator.reward_aggregator import RewardAggregator
 from diversity_filter.diversity_filter import DiversityFilter
 
 from oracles.utils import construct_oracle_component
+from benchmark.spec_tasks import is_geam_spec_target
 
 
 class Oracle:
@@ -116,7 +117,7 @@ class Oracle:
                         if oracle.lead_smiles:
                             raw_vina, qed_rewards, raw_sa, raw_similarity, aggregated_rewards = oracle(new_mols)
                             oracle_components_df["raw_similarity"] = raw_similarity
-                        elif oracle.specific_parameters["target"] in ["6nzp_7uyt", "6nzp_5ut5", "6nzp_7uyw"]:
+                        elif is_geam_spec_target(oracle.specific_parameters["target"]):
                             raw_vina, raw_vina_antitarget, qed_rewards, raw_sa, aggregated_rewards = oracle(new_mols)
                             oracle_components_df["raw_vina_antitarget"] = raw_vina_antitarget
                         else:

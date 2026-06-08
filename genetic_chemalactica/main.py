@@ -78,11 +78,7 @@ if __name__ == "__main__":
 
     logger.info(f"Experiment id: {cmd_args.experiment_id}")
 
-    if cmd_args.method == "mcts":
-        mcts_search(args)
-    elif cmd_args.method == "genetic":
+    if cmd_args.method == "genetic":
         genetic_search(args)
-    elif cmd_args.method == "grpo":
-        grpo_search(args)
     else:
         raise ValueError(f"Invalid method {cmd_args.method}")

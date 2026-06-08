@@ -10,7 +10,12 @@ import traceback
 import resource
 from flask import Flask, request, jsonify
 
-from benchmark.docking_oracle.docking import DockingOracle
+from benchmark.docking_oracle.docking import (
+    ANTITARGET_RECEPTORS,
+    TARGET_BOX,
+    DockingOracle,
+    antitarget_dock_settings,
+)
 
 
 try:
@@ -28,7 +33,7 @@ except Exception as e:
 
 app = Flask(__name__)
 oracles = {}
-TARGETS = ["parp1", "jak2", "braf", "fa7", "5ht1b", "6nzp", "7uyt", "5ut5", "7uyw"]
+TARGETS = sorted(TARGET_BOX.keys())
 
 
 def initialize_oracles(exhaustiveness=None):
@@ -47,7 +52,19 @@ def initialize_oracles(exhaustiveness=None):
 
 @app.route("/health", methods=["GET"])
 def health():
-    return jsonify({"status": "healthy", "initialized_targets": list(oracles.keys())})
+    repeats, agg = antitarget_dock_settings()
+    return jsonify(
+        {
+            "status": "healthy",
+            "initialized_targets": list(oracles.keys()),
+            "antitarget_receptors": sorted(ANTITARGET_RECEPTORS),
+            "antitarget_dock_repeats": repeats,
+            "antitarget_dock_agg": agg,
+            "exhaustiveness_by_target": {
+                t: oracles[t].exhaustiveness for t in sorted(oracles.keys())
+            },
+        }
+    )
 
 
 @app.route("/predict/<target>", methods=["POST"])

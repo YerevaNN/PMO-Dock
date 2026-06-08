@@ -7,7 +7,7 @@ import importlib.util
 
 _repo_root = os.environ.get("PROJECT_ROOT") or os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-_root_docking_path = os.path.join(_repo_root, "docking_oracle", "docking.py")
+_root_docking_path = os.path.join(_repo_root, "benchmark", "docking_oracle", "docking.py")
 _spec = importlib.util.spec_from_file_location("_root_oracles_docking", _root_docking_path)
 _root_docking = importlib.util.module_from_spec(_spec)
 if _repo_root not in sys.path:

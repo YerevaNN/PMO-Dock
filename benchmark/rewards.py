@@ -12,18 +12,11 @@ def select_sigma(prop_name: str):
     prop_name2sigma = {
         "qed_score": coef * 1,
         "sa_score": coef * 7,
-        "docking_score": coef * 20,
-        "CLOGP": coef * 18,
-        "TPSA": coef * 100,
-        # genetic_chemalactica / saturn naming
         "QED": coef * 1,
         "SAS": coef * 7,
         "WEIGHT": coef * 1000,
         "RINGCOUNT": coef * 5,
-        "NUMAROMATICRINGS": coef * 5,
-        "JNK3": coef * 1,
-        "DRD2": coef * 1,
-        "GSK3B": coef * 1,
+        "NUMAROMATICRINGS": coef * 5
     }
     if prop_name in prop_name2sigma:
         return prop_name2sigma[prop_name]

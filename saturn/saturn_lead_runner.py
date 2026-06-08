@@ -303,7 +303,7 @@ if __name__ == "__main__":
         config_dicts = [copy.deepcopy(orig_config_dict)]
     
     lead_smiles_df = pd.read_csv(
-        os.path.join(os.environ["PROJECT_ROOT"], "saturn", "lead", "actives.csv")
+        os.path.join(os.environ["PROJECT_ROOT"], "benchmark", "actives.csv")
     )
 
     all_cfg_paths = []

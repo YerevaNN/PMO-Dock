@@ -483,7 +483,7 @@ class Oracle:
         for i, obj in enumerate(self.objectives):
             obj_lower = str(obj).lower()
             if obj_lower in DOCKING_TARGETS:
-                # Docking objective (including selectivity anti-targets like 7uyt/7uyw/5ut5).
+                # Docking objective (including selectivity anti-targets like 7uyt/4l00/5khw).
                 norm_scores, raw_scores_list = get_scores(obj, [mol], return_normalized=True, return_raw_scores=True)
                 scores[i] = norm_scores[0]
                 raw_scores[i] = raw_scores_list[0]

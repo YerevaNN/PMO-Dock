@@ -24,8 +24,9 @@ import requests
 import logging
 from time import perf_counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from docking_oracle.docking import DockingVina
-from docking_oracle.docking_vina_client import DockingVinaClient
+from benchmark.docking_oracle.docking import DockingVina, is_antitarget_receptor
+from benchmark.docking_oracle.docking_vina_client import DockingVinaClient
+from benchmark.spec_tasks import is_geam_spec_target, parse_geam_spec_target
 from utils.tasks import task_name2constraints, select_sigma
 from utils.rewards import hit_reward
 
@@ -77,18 +78,14 @@ class GEAMOracle(OracleComponent):
     def __init__(self, parameters: OracleComponentParameters):
         super().__init__(parameters)
         # Extract target, handling both string and list cases
-        if parameters.specific_parameters["target"] in ["6nzp_7uyt", "6nzp_5ut5", "6nzp_7uyw"]:
-            target = "6nzp"
-            self.antitarget = parameters.specific_parameters["target"].split("_")[-1]
-            self.vina_exhaustiveness = 8
+        spec = parse_geam_spec_target(parameters.specific_parameters["target"])
+        if spec is not None:
+            target, self.antitarget = spec
         else:
             self.antitarget = None
-            target = parameters.specific_parameters["target"] 
-            self.vina_exhaustiveness = 1
+            target = parameters.specific_parameters["target"]
         self.target = target if isinstance(target, str) else target[0] if isinstance(target, list) and len(target) > 0 else str(target)
-        logging.debug("GEAMOracle target=%s exhaustiveness=%s", self.target, self.vina_exhaustiveness)
-        # self.vina_exhaustiveness = parameters.vina_exhaustiveness
-        # self.vina_seed = parameters.vina_seed
+        logging.debug("GEAMOracle target=%s antitarget=%s", self.target, self.antitarget)
         # Check if docking Vina service URL is configured (from specific_parameters or DOCKING_VINA_URL)
         oracle_service_url = parameters.specific_parameters.get("oracle_url")
         if oracle_service_url is None:
@@ -103,9 +100,9 @@ class GEAMOracle(OracleComponent):
             else:
                 self.vina_oracle_antitarget = None
         else:
-            self.vina_oracle = DockingVina(self.target, exhaustiveness=self.vina_exhaustiveness)
+            self.vina_oracle = DockingVina(self.target)
             if self.antitarget:
-                self.vina_oracle_antitarget = DockingVina(self.antitarget, exhaustiveness=self.vina_exhaustiveness)
+                self.vina_oracle_antitarget = DockingVina(self.antitarget)
             else:
                 self.vina_oracle_antitarget = None
     def __call__(self, mols: np.ndarray[Mol]) -> np.ndarray[float]:
@@ -140,7 +137,7 @@ class GEAMOracle(OracleComponent):
         qed_rewards = reward_qed(mols)
         raw_sa, sa_rewards = reward_sa(mols)
 
-        if self.antitarget in ["7uyt", "5ut5", "7uyw"]:
+        if self.antitarget and is_antitarget_receptor(self.antitarget):
             raw_ds_antitarget, ds_rewards_antitarget = reward_vina(smiles, self.vina_oracle_antitarget)
             ds_rewards_antitarget = (np.clip(ds_rewards_antitarget, 0, 20) / 20)
             ds_target_values = (np.clip(ds_rewards, 0, 20) / 20)
@@ -175,11 +172,11 @@ class HITOracle(OracleComponent):
         super().__init__(parameters)
         # Extract target, handling both string and list cases
         self.antitarget = None
-        if parameters.specific_parameters["target"] in ["6nzp_7uyt", "6nzp_5ut5", "6nzp_7uyw"]:
-            target = "6nzp"
-            self.antitarget = parameters.specific_parameters["target"].split("_")[-1]
+        spec = parse_geam_spec_target(parameters.specific_parameters["target"])
+        if spec is not None:
+            target, self.antitarget = spec
         else:
-            target = parameters.specific_parameters["target"] 
+            target = parameters.specific_parameters["target"]
         self.target = target if isinstance(target, str) else target[0] if isinstance(target, list) and len(target) > 0 else str(target)
         # Check if docking Vina service URL is configured (from specific_parameters or DOCKING_VINA_URL)
         oracle_service_url = parameters.specific_parameters.get("oracle_url")
@@ -199,8 +196,8 @@ class HITOracle(OracleComponent):
         # Determine task name based on target
         if self.target in ["jnk3", "drd2", "gsk3b"]:
             task_name = "hit.pmo"
-        elif self.target == "6nzp":
-            task_name = f"spec.{target}"
+        elif self.target == "6nzp" and self.antitarget:
+            task_name = f"spec.{self.target}_{self.antitarget}"
         else:
             task_name = f"hit.{self.target}"
         
@@ -322,7 +319,7 @@ class HITOracle(OracleComponent):
             logging.info("HITOracle lead n=%d %.1fs", n, perf_counter() - t0)
             return raw_ds, qed_values, raw_sa, raw_similarity, aggregated_rewards
 
-        if self.antitarget in ["7uyt", "5ut5", "7uyw"]:
+        if self.antitarget and is_antitarget_receptor(self.antitarget):
             # Rewards from raw (0-20 scale): clip then cap at 20 and normalize
             ds_rewards_antitarget = np.clip(np.clip(ds_values_antitarget, 0, None), 0, 20) / 20
             ds_target_values = np.clip(np.clip(ds_values, 0, None), 0, 20) / 20

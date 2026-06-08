@@ -1,12 +1,29 @@
 import math
+import re
 
 import numpy as np
 
-from benchmark.guacamol_assets import (
-    guassian_modifier,
-    isomer_scoring,
-    perindopril_smiles,
-)
+from benchmark.rewards import gaussian_modifier
+
+
+def _parse_molecular_formula(formula: str):
+    matches = re.findall(r"([A-Z][a-z]*)(\d*)", formula)
+    return [(elem, 1 if not cnt else int(cnt)) for elem, cnt in matches]
+
+
+def isomer_scoring(formula1: str, formula2: str):
+    atom2cnt_lst1 = _parse_molecular_formula(formula1)
+    atom2cnt_lst2 = _parse_molecular_formula(formula2)
+    res = []
+    for target_atom, target_cnt in atom2cnt_lst2:
+        for atom, cnt in atom2cnt_lst1:
+            if target_atom == atom:
+                res.append(gaussian_modifier(abs(target_cnt - cnt), mu=0, sigma=1.0))
+                break
+    total_num_atoms1 = sum(cnt for _, cnt in atom2cnt_lst1)
+    total_num_atoms2 = sum(cnt for _, cnt in atom2cnt_lst2)
+    res.append(gaussian_modifier(abs(total_num_atoms1 - total_num_atoms2), mu=0, sigma=2.0))
+    return np.array(res).prod().tolist()
 
 
 def compute_gaussian_err(measured, real, sigmas, agg=True):
@@ -15,7 +32,7 @@ def compute_gaussian_err(measured, real, sigmas, agg=True):
         if type(m) == str:
             score = isomer_scoring(m, r)
         else:
-            score = guassian_modifier(m - r, mu=0, sigma=sigma)
+            score = gaussian_modifier(m - r, mu=0, sigma=sigma)
         errors.append(score)
 
     if agg:
@@ -42,7 +59,7 @@ def hit_reward(measured, sigmas, hit_ranges, prod=True, avg=False):
             rewards.append(1)
         else:
             dist = min(abs(m - rnge[0]), abs(m - rnge[1]))
-            reward = guassian_modifier(dist, mu=0, sigma=sigma)
+            reward = gaussian_modifier(dist, mu=0, sigma=sigma)
             rewards.append(reward)
 
     if prod:

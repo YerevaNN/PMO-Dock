@@ -24,8 +24,10 @@ import logging
 import resource
 import sys
 
-from utils.tasks import task_name2constraints, select_sigma, guassian_modifier
-from utils.docking_vina_client import DockingVinaClient
+from benchmark.tasks import task_name2constraints
+from benchmark.rewards import gaussian_modifier, select_sigma
+from benchmark.spec_tasks import geam_spec_oracle_names, parse_geam_spec_target
+from benchmark.docking_oracle.docking_vina_client import DockingVinaClient
 from genmol.sampler import Sampler
 from genmol.utils.utils_chem import cut
 sys.path.append(os.path.join(RDConfig.RDContribDir, 'SA_Score'))
@@ -95,9 +97,9 @@ class GenMolOpt():
         super().__init__()
         self.args = args
 
-        if self.args.oracle_name in ['6nzp_7uyt', '6nzp_5ut5', '6nzp_7uyw']:
-            self.target = self.args.oracle_name.split('_')[0]
-            self.antitarget = self.args.oracle_name.split('_')[1]
+        spec = parse_geam_spec_target(self.args.oracle_name)
+        if spec is not None:
+            self.target, self.antitarget = spec
         else:
             self.target = self.args.oracle_name
             self.antitarget = None
@@ -202,7 +204,7 @@ class GenMolOpt():
                     smiles_reward.append(1)
                 else:
                     dist = min(abs(m - rnge[0]), abs(m - rnge[1]))
-                    reward = guassian_modifier(dist, mu=0, sigma=sigma)
+                    reward = gaussian_modifier(dist, mu=0, sigma=sigma)
                     smiles_reward.append(reward)
             # Combine rewards across properties for this molecule
             if prod:
@@ -351,7 +353,11 @@ class GenMolOpt():
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--config_file',            type=str,   default='scripts/exps/hit/configs/genmol_hit.yaml')
-    parser.add_argument('--oracle_name',            type=str,   choices=['parp1', 'fa7', '5ht1b', 'braf', 'jak2', '6nzp_7uyt', '6nzp_5ut5', '6nzp_7uyw'])
+    parser.add_argument(
+        '--oracle_name',
+        type=str,
+        choices=['parp1', 'fa7', '5ht1b', 'braf', 'jak2', *geam_spec_oracle_names()],
+    )
     parser.add_argument('--oracle_url',             type=str,   default=None)
     parser.add_argument('--seed',                   type=int,   choices=[1, 2, 3, 4, 5])
     parser.add_argument('--model_path',             type=str,   default='model.ckpt')

@@ -106,7 +106,7 @@ def main():
         '--anti_target',
         type=str,
         default="",
-        help="Anti-target docking receptor name (e.g. 7uyt/7uyw/5ut5). "
+        help="Anti-target docking receptor name (e.g. 7uyt/4l00/5khw). "
              "Required if objectives include `6nzp`. When set, it is appended to objectives and "
              "its normalized score is transformed as (1 - x).",
     )

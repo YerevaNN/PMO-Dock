@@ -225,7 +225,9 @@ def main():
         beta_vals = beta_vals[: max(0, int(args.max_betas))]
     seeds = [int(s) for s in args.seeds]
     # Selectivity anti-targets for 6nzp.
-    anti_targets = ["7uyt", "5ut5", "7uyw"] if str(args.target).lower() == "6nzp" else []
+    from benchmark.spec_tasks import list_antitarget_receptors
+
+    anti_targets = list_antitarget_receptors() if str(args.target).lower() == "6nzp" else []
     if str(args.target).lower() == "6nzp" and not anti_targets:
         raise ValueError("6nzp target requires anti-targets but none were configured.")
     if str(args.target).lower() != "6nzp":

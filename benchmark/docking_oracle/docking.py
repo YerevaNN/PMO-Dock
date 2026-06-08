@@ -1,42 +1,53 @@
+"""
+Local DockingOracle implementation (qvina02 subprocess + OpenBabel 3D).
+"""
+
 from __future__ import annotations
 
-"""
-Benchmark-owned docking oracle module.
-
-Note: the heavy implementation lives in `benchmark.docking_oracle.local_docking`.
-This module keeps a small surface that is cheap to import.
-"""
-
-from benchmark.docking_oracle.local_docking import (  # noqa: F401
-    DockingOracle,
-    quickvina_predictor,
-    TARGET_BOX,
-)
-
-"""
-Shared local DockingOracle implementation (qvina02 subprocess + OpenBabel 3D).
-
-Moved under `benchmark/docking_oracle/` so benchmark assets own docking.
-"""
-
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import cache
+import logging
+import multiprocessing
 import os
-import time
 import shutil
-from shutil import rmtree
 import subprocess
 import threading
-import multiprocessing
-from concurrent.futures import ThreadPoolExecutor, as_completed
-import logging
+import time
+from shutil import rmtree
 
 import numpy as np
 from openbabel import pybel
 
 
-_ANTITARGET_TARGETS = frozenset({"7uyt", "5ut5", "7uyw"})
+# Antitarget receptors: one predict() call runs multiple stochastic docks (see below).
+ANTITARGET_RECEPTORS = frozenset({"7uyt", "5ut5", "7uyw", "4l00", "5khw"})
+# Receptors that use higher QuickVina exhaustiveness (spec / antitarget tasks).
+HIGH_EXHAUSTIVENESS_RECEPTORS = frozenset({"6nzp", *ANTITARGET_RECEPTORS})
+DEFAULT_HIT_EXHAUSTIVENESS = 1
+DEFAULT_SPEC_EXHAUSTIVENESS = 8
+DEFAULT_ANTITARGET_DOCK_REPEATS = 3
+DEFAULT_ANTITARGET_DOCK_AGG = "max"  # best affinity among repeats (nanmin on raw scores)
+
 _FAIL_AFFINITY = 99.9
 _FAIL_THRESHOLD = 99.0
+
+
+def is_antitarget_receptor(target: str) -> bool:
+    return target in ANTITARGET_RECEPTORS
+
+
+def default_exhaustiveness(target: str) -> int:
+    if target in HIGH_EXHAUSTIVENESS_RECEPTORS:
+        return DEFAULT_SPEC_EXHAUSTIVENESS
+    return DEFAULT_HIT_EXHAUSTIVENESS
+
+
+def antitarget_dock_settings() -> tuple[int, str]:
+    """(repeat_count, aggregation) for antitarget predict(); env overrides defaults."""
+    repeats = int(os.environ.get("ANTITARGET_DOCK_REPEATS", str(DEFAULT_ANTITARGET_DOCK_REPEATS)))
+    repeats = max(1, repeats)
+    agg = os.environ.get("ANTITARGET_DOCK_AGG", DEFAULT_ANTITARGET_DOCK_AGG)
+    return repeats, agg
 
 
 def _aggregate_antitarget_affinities(runs: list[list[float]], agg: str) -> list[float]:
@@ -66,8 +77,6 @@ def _get_grids_dir():
     env = os.environ.get("DOCKING_GRIDS_DIR")
     if env:
         return os.path.abspath(env)
-    # Default: prefer benchmark-owned path, but fall back to legacy repo location
-    # to avoid copying large receptor files in environments where they are already present.
     here = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docking_grids")
     if os.path.isdir(here):
         return here
@@ -89,6 +98,8 @@ TARGET_BOX = {
     "6nzp": {"center": (13.0, -5.4, 27.3), "size": (20.0, 22.0, 18.0)},
     "7uyt": {"center": (6.1, 8.6, -19.3), "size": (22.0, 22.0, 22.0)},
     "7uyw": {"center": (15.7, 9.5, 5.5), "size": (20.0, 24.0, 20.0)},
+    "4l00": {"center": (0.6, 36.0, 39.0), "size": (22.0, 18.0, 20.0)},
+    "5khw": {"center": (44.5, -14.5, 3.9), "size": (22.0, 20.0, 20.0)},
 }
 
 
@@ -114,10 +125,8 @@ class DockingOracle:
         self.receptor_file = os.path.join(grids_dir, f"{target}.pdbqt")
         if exhaustiveness is not None:
             self.exhaustiveness = exhaustiveness
-        elif target in ("6nzp", "7uyt", "5ut5", "7uyw"):
-            self.exhaustiveness = 8
         else:
-            self.exhaustiveness = 1
+            self.exhaustiveness = default_exhaustiveness(target)
         self.num_cpu_dock = int(os.environ.get("NUM_CPU_DOCK", 2))
         self._init_semaphore()
         self.num_modes = 10
@@ -299,15 +308,26 @@ class DockingOracle:
     def predict(self, smiles_list, seed: int = 0):
         if not smiles_list:
             return []
-        if self.target in _ANTITARGET_TARGETS:
-            n_rep = int(os.environ.get("ANTITARGET_DOCK_REPEATS", "3"))
-            n_rep = max(1, n_rep)
-            agg = os.environ.get("ANTITARGET_DOCK_AGG", "max")
-            if n_rep == 1:
-                return self._predict_single_seed(smiles_list, seed)
-            runs = [self._predict_single_seed(smiles_list, seed + k) for k in range(n_rep)]
-            return _aggregate_antitarget_affinities(runs, agg)
+        if is_antitarget_receptor(self.target):
+            return self._predict_antitarget(smiles_list, seed)
         return self._predict_single_seed(smiles_list, seed)
+
+    def _predict_antitarget(self, smiles_list, base_seed: int):
+        """Run antitarget docking with distinct random seeds; callers issue one predict()."""
+        n_rep, agg = antitarget_dock_settings()
+        if n_rep == 1:
+            return self._predict_single_seed(smiles_list, base_seed)
+        seeds = [base_seed + k for k in range(n_rep)]
+        logging.getLogger(__name__).debug(
+            "Antitarget %s: %d dock(s) with seeds %s (exhaustiveness=%s, agg=%s)",
+            self.target,
+            n_rep,
+            seeds,
+            self.exhaustiveness,
+            agg,
+        )
+        runs = [self._predict_single_seed(smiles_list, s) for s in seeds]
+        return _aggregate_antitarget_affinities(runs, agg)
 
     def _cleanup(self, paths):
         for p in paths:
@@ -324,3 +344,21 @@ class DockingOracle:
             except Exception:
                 pass
 
+
+# Legacy name used by Saturn / GenMol entrypoints.
+DockingVina = DockingOracle
+
+__all__ = [
+    "ANTITARGET_RECEPTORS",
+    "DEFAULT_ANTITARGET_DOCK_AGG",
+    "DEFAULT_ANTITARGET_DOCK_REPEATS",
+    "DEFAULT_HIT_EXHAUSTIVENESS",
+    "DEFAULT_SPEC_EXHAUSTIVENESS",
+    "TARGET_BOX",
+    "DockingOracle",
+    "DockingVina",
+    "antitarget_dock_settings",
+    "default_exhaustiveness",
+    "is_antitarget_receptor",
+    "quickvina_predictor",
+]

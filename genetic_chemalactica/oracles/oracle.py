@@ -22,14 +22,15 @@ from benchmark.computers.property_computers import dynamic_computer
 from utils.tasks import (
     task_name2computer_names,
     task_name2hit_ranges,
-    select_sigma
+    select_sigma,
+    validate_task_name,
+    validate_reward_type,
 )
 from utils.rewards import (
     hit_reward,
     hit_docking_score_reward,
-    hit_similarity_reward,
+    hit_spec_reward,
     compute_geam_reward,
-    hit_spec_reward
 )
 
 
@@ -43,6 +44,8 @@ def select_oracle(
     use_oracles_app: bool = True,
     bench_timer: Optional[Any] = None,
 ):
+    validate_task_name(task_name)
+    reward_type = validate_reward_type(task_name, reward_type)
     if torch.distributed.is_initialized():
         rank = torch.distributed.get_rank()
     else:
@@ -68,30 +71,19 @@ def select_oracle(
     else:
         print("Oracle mode: local (no ORACLES_APP HTTP service)")
 
-    if task_name.startswith("dock."):
+    if task_name.startswith("hit."):
         if reward_type == "hit":
             score_computer = partial(hit_reward, sigmas=sigmas, hit_ranges=hit_ranges)
         elif reward_type == "max":
             score_computer = partial(hit_docking_score_reward, sigmas=sigmas, hit_ranges=hit_ranges)
+        elif reward_type == "geam":
+            score_computer = compute_geam_reward
         else:
             raise ValueError(f"Invalid reward type {reward_type}")
     elif task_name.startswith("spec."):
         score_computer = partial(hit_spec_reward, sigmas=sigmas, hit_ranges=hit_ranges)
-    elif task_name.startswith("geam."):
-        score_computer = compute_geam_reward
-    elif task_name.startswith("pmo."):
-        if reward_type == "hit":
-            score_computer = partial(hit_reward, sigmas=sigmas, hit_ranges=hit_ranges)
-        elif reward_type == "max":
-            score_computer = partial(hit_similarity_reward, sigmas=sigmas, hit_ranges=hit_ranges)
-        else:
-            raise ValueError(f"Invalid reward type {reward_type}")
     elif task_name.startswith("lead."):
         score_computer = partial(hit_docking_score_reward, sigmas=sigmas, hit_ranges=hit_ranges)
-    elif task_name.startswith("lead_no_sim."):
-        score_computer = partial(hit_docking_score_reward, sigmas=sigmas, hit_ranges=hit_ranges)
-    elif task_name.startswith("hit."):
-        score_computer = partial(hit_reward, sigmas=sigmas, hit_ranges=hit_ranges)
     else:
         raise ValueError(f"Oracle name {task_name} does not exist")
 

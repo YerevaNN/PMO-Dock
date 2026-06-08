@@ -14,3 +14,9 @@ class BenchmarkTimer:
     def phase(self, name: str) -> Iterator[None]:
         _ = name
         yield
+
+    def log_iteration(self, iteration: int) -> None:
+        _ = iteration
+
+    def log_summary(self) -> None:
+        pass

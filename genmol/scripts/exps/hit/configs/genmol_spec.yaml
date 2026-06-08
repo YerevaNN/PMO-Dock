@@ -1,6 +1,6 @@
 seed: [0, 1, 2]
 model_path: model.ckpt
-oracle_name: [6nzp_7uyt, 6nzp_5ut5, 6nzp_7uyw]
+oracle_name: [6nzp_7uyt, 6nzp_5ut5, 6nzp_7uyw, 6nzp_4l00, 6nzp_5khw]
 num_gen: 100
 num_iter: 30
 softmax_temp: 1.2

@@ -1,11 +1,9 @@
+from benchmark.spec_tasks import SPEC_TASK_CONSTRAINTS, is_spec_task_name
+
+
 def task_name2constraints(task_name):
-    if task_name in ["spec.6nzp_7uyt", "spec.6nzp_5ut5", "spec.6nzp_7uyw"]:
-        return {
-            'qed_score': [0.40, 1.00],
-            'sa_score': [1.00, 4.00],
-            'docking_score': [10.67, 20.00],
-            'antitarget_docking_score': [0.00, 20.00]
-        }
+    if is_spec_task_name(task_name):
+        return dict(SPEC_TASK_CONSTRAINTS)
     return {
         'lead.sim_04': {
             'qed_score': [0.60, 1.00],
@@ -41,10 +39,10 @@ def task_name2constraints(task_name):
             'qed_score': [0.50, 1.00],
             'sa_score': [1.00, 5.00],
             'docking_score': [9.10, 20.00]
-        },
-        "hit.pmo": {
-            'qed_score': [0.50, 1.00],
-            'sa_score': [1.00, 5.00],
-            'docking_score': [0.60, 1.00]
         }
     }[task_name]
+
+
+def lead_qed_sa_hit_constraints(sim: str):
+    """Lead docking curves: ``sim`` is ``'04'`` or ``'06'`` (similarity tier)."""
+    return task_name2constraints(f"lead.sim_{sim}")

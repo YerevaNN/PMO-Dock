@@ -6,6 +6,10 @@ Expected service contract:
 - Response JSON contains {"scores": [...]} where each score is a docking affinity (typically negative).
 - The service uses 99.9 to indicate a per-molecule docking failure (mapped to 0.0 by this client).
 
+Antitarget receptors (7uyt, 5ut5, 7uyw, 4l00, 5khw): send one request per batch. The service runs
+``DockingOracle.predict()`` which docks each molecule multiple times (default 3 seeds) with
+higher exhaustiveness and aggregates scores internally. Callers must not loop over seeds.
+
 Callers typically resolve the service base URL from the process environment variable ``DOCKING_VINA_URL``
 or pass an explicit URL; see ``benchmark.computers.property_computers.compute_quickvina_docking_score``.
 """
@@ -63,6 +67,7 @@ class DockingOracleClient:
         self,
         smiles_list: Union[List[str], "np.ndarray"],
         seed: int = 0,
+        raw_affinities: bool = False,
     ) -> List[float]:
         smiles_list = _as_list(smiles_list)
         max_retries = 5
@@ -83,6 +88,8 @@ class DockingOracleClient:
                 response.raise_for_status()
                 result = response.json()
                 scores = result["scores"]
+                if raw_affinities:
+                    return [float(score) for score in scores]
                 return [0.0 if score == 99.9 else float(score) for score in scores]
             except requests.exceptions.Timeout as e:
                 last_exception = e
@@ -145,4 +152,8 @@ class DockingOracleClient:
         if last_exception:
             raise last_exception
         raise RuntimeError(f"All {max_retries} retry attempts failed for {self.target} without exception.")
+
+
+# Backward-compatible alias used by Saturn / GenMol entrypoints.
+DockingVinaClient = DockingOracleClient
 

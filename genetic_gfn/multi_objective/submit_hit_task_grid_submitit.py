@@ -47,10 +47,12 @@ from utils.experiment_utils import get_log_dir  # noqa: E402
 
 
 # ------------------------
+from benchmark.spec_tasks import list_antitarget_receptors
+
 # Selectivity configuration: target -> list of anti-target docking receptors.
 # ------------------------
 TARGET_TO_ANTI_TARGETS = {
-    "6nzp": ["7uyt", "5ut5"],
+    "6nzp": list_antitarget_receptors(),
 }
 
 

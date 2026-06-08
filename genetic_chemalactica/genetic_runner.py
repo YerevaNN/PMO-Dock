@@ -10,7 +10,7 @@ import copy
 from glob import glob
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# genetic_chemalactica/ (this file) and repo root for utils.experiment_utils
+# Repo root first so `utils.experiment_utils` resolves; `utils.tasks` re-exports genetic_chemalactica helpers.
 _gc_root = os.path.dirname(os.path.abspath(__file__))
 repo_root = os.path.dirname(_gc_root)
 sys.path.insert(0, repo_root)
@@ -19,6 +19,7 @@ from utils.experiment_utils import (
     get_job_dir,
     get_log_dir,
 )
+from utils.tasks import validate_task_name, validate_reward_type
 
 
 def to_nested_dict(orig_dict):
@@ -209,10 +210,11 @@ if __name__ == "__main__":
         type=int
     )
     parser.add_argument(
-        "--oracle_name",
+        "--task_name",
         nargs="+",
         required=False,
-        type=str
+        type=str,
+        help="Task name(s), e.g. hit.parp1, lead.parp1_04_0, spec.6nzp_7uyt.",
     )
     parser.add_argument(
         "--vina_url",
@@ -230,7 +232,7 @@ if __name__ == "__main__":
         required=False,
         type=str,
         default="hit",
-        help="Reward type to use for the oracle (hit or max)"
+        help="Reward type for hit.<target> docking tasks: hit (default), max, or geam. Ignored for lead/spec tasks."
     )
     parser.add_argument(
         "--hparam_config",
@@ -270,10 +272,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Validate required arguments
-    if args.oracle_name is None:
-        raise ValueError("--oracle_name is required")
+    if args.task_name is None:
+        raise ValueError("--task_name is required")
     if args.seeds is None:
         raise ValueError("--seeds is required")
+    for task in args.task_name:
+        validate_task_name(task)
+        validate_reward_type(task, args.reward_type)
 
     # Setup logging
     logging.basicConfig(
@@ -326,22 +331,22 @@ if __name__ == "__main__":
     device_counter = 0
     for config_dict in config_dicts:
         # create log dirs
-        task_name = args.oracle_name[0].split(".")[0]
+        task_category = args.task_name[0].split(".")[0]
         log_dir = get_log_dir(
             method="genetic",
-            model_name=task_name,
+            model_name=task_category,
             exp_name="exp",
             suffix="-hparam" if args.hparam_config else "",
         )
         os.makedirs(log_dir, exist_ok=True)
 
-        for oracle in args.oracle_name:
-            oracle_log_dir = os.path.join(log_dir, oracle)
-            os.makedirs(oracle_log_dir, exist_ok=True)
+        for task in args.task_name:
+            task_log_dir = os.path.join(log_dir, task)
+            os.makedirs(task_log_dir, exist_ok=True)
 
-            # Collect all config paths for this (hparam_combo, oracle) pair
+            # Collect all config paths for this (hparam_combo, task) pair
             for seed in args.seeds:
-                seed_log_dir = os.path.join(oracle_log_dir, f"seed-{seed}")
+                seed_log_dir = os.path.join(task_log_dir, f"seed-{seed}")
                 os.makedirs(seed_log_dir, exist_ok=True)
 
                 # Create a deep copy to avoid modifying the original
@@ -353,7 +358,7 @@ if __name__ == "__main__":
                 
                 # Update config with run-specific settings
                 seed_config_dict["seed"] = seed
-                seed_config_dict["oracle"]["name"] = oracle
+                seed_config_dict["oracle"]["task_name"] = task
                 seed_config_dict["oracle"]["max_calls"] = args.max_oracle_calls
                 seed_config_dict["oracle"]["log_dir"] = seed_log_dir
                 seed_config_dict["oracle"]["reward_type"] = args.reward_type
@@ -365,7 +370,7 @@ if __name__ == "__main__":
                 seed_config_dict["device"] = _round_robin_device(device_counter, n_gpus)
                 device_counter += 1
 
-                cfg_file = os.path.join(oracle_log_dir, f"config-{seed}.yaml")
+                cfg_file = os.path.join(task_log_dir, f"config-{seed}.yaml")
                 with open(cfg_file, "w") as f:
                     yaml.safe_dump(seed_config_dict, f)
                 all_cfg_paths.append(cfg_file)

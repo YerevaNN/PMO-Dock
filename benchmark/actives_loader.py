@@ -34,3 +34,8 @@ def actives_smiles_by_target(path: str | None = None) -> Dict[str, List[str]]:
         out.setdefault(t, []).append(s)
     return out
 
+
+def lead_seed_smiles(target: str, idx: int) -> str:
+    """Return lead-task seed SMILES for `target` at index `idx` (from actives.csv)."""
+    return actives_smiles_by_target()[target][int(idx)]
+

@@ -39,11 +39,3 @@ def expand_env_vars(obj: Any) -> Any:
     if isinstance(obj, str):
         return expand_path_string(obj)
     return obj
-
-
-def resolve_maybe_relative(path: str, *, base_dir: str | os.PathLike) -> str:
-    """If `path` is relative, resolve it under `base_dir`. Always expands env vars."""
-    p = Path(expand_path_string(path))
-    if not p.is_absolute():
-        p = Path(base_dir) / p
-    return str(p.resolve())

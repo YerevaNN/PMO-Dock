@@ -20,9 +20,11 @@ from utils.experiment_utils import (
     get_log_dir
 )
 
+from benchmark.spec_tasks import list_antitarget_receptors
+
 # Selectivity configuration: target -> list of anti-target docking receptors.
 TARGET_TO_ANTI_TARGETS = {
-    "6nzp": ["7uyw"],
+    "6nzp": list_antitarget_receptors(),
 }
 
 # Hardcoded once from: GeneticGFN/multi_objective/genetic_gfn/lead/actives.csv

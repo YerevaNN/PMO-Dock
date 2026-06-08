@@ -13,6 +13,7 @@ from experience_replay.dataclass import ExperienceReplayParameters
 
 # Oracle is called if seeding molecules into the Replay Buffer at the start of the generative experiment
 from oracles.oracle import Oracle
+from benchmark.spec_tasks import is_geam_spec_target
 
 
 class ReplayBuffer:
@@ -166,7 +167,7 @@ class ReplayBuffer:
                         oracle_components_df["raw_sa"] = raw_sa
                         oracle_components_df["raw_similarity"] = raw_similarity
                         oracle_components_df["aggregated_reward"] = aggregated_rewards_geam
-                    elif oracle_component.specific_parameters["target"] in ["6nzp_7uyt", "6nzp_5ut5", "6nzp_7uyw"]:
+                    elif is_geam_spec_target(oracle_component.specific_parameters["target"]):
                         raw_vina, raw_vina_antitarget, qed_rewards, raw_sa, aggregated_rewards_geam = oracle_component.calculate_reward(mols, oracle_calls=0)
                         oracle_components_df["raw_vina"] = raw_vina
                         oracle_components_df["raw_vina_antitarget"] = raw_vina_antitarget

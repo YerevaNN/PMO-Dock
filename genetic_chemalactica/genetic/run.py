@@ -13,12 +13,14 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np
 import torch
 from omegaconf import OmegaConf
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, PreTrainedTokenizerFast
 
 from benchmark.benchmark_timer import BenchmarkTimer
 
 from genetic_chemalactica.oracles.oracle import select_oracle
-from benchmark.guacamol_assets import lead_seed_smiles
+from benchmark.actives_loader import lead_seed_smiles
+from benchmark.docking_oracle.docking import ANTITARGET_RECEPTORS
+from benchmark.spec_tasks import spec_task_name
 
 parp1_0 = lead_seed_smiles("parp1", 0)
 parp1_1 = lead_seed_smiles("parp1", 1)
@@ -116,86 +118,29 @@ class TempScheduler:
 
 
 def props_dict_from_task(full_task_name: str):
+    from utils.tasks import validate_task_name
+
+    validate_task_name(full_task_name)
     prop_dict = {
-        # "pmo.jnk3": "",
-        "pmo.median1": (
-            ("SIMILAR", lambda: f"CC12CCC(CC1=O)C2(C)C 0.55"),
-            ("SIMILAR", lambda: f"CC1CCC(C(C)C)C(O)C1 0.55")
-        ),
-        "pmo.median2": (
-            ("SIMILAR", lambda: f"CN1CC(=O)N2C(Cc3c([nH]c4ccccc34)C2c2ccc3c(c2)OCO3)C1=O 0.55"),
-            ("SIMILAR", lambda: f"CCCc1nn(C)c2c(=O)[nH]c(-c3cc(S(=O)(=O)N4CCN(C)CC4)ccc3OCC)nc12 0.55")
-        ),
-        "pmo.scaffold_hop": (
-            "[SIMILAR]CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C 0.80[/SIMILAR]"
-        ),
-        "pmo.sitagliptin_mpo": (
-            ("SIMILAR", lambda: f"C=CC(=O)Nc1cc(Nc2nccc(-c3cn(C)c4ccccc34)n2)c(OC)cc1N(C)CCN(C)C 0.01"),
-            ("CLOGP", lambda: "2.02"),
-            ("TPSA", lambda: "77.04"),
-            ("FORMULA", lambda: "C16H15F6N5O2")
-        ),
-        # "pmo.fexofenadine_mpo": (
-        #     ("SIMILAR", lambda: f"CC(C)(C(=O)O)c1ccc(C(O)CCCN2CCC(C(O)(c3ccccc3)c3ccccc3)CC2)cc1 {generate_random_number(0.8, 1.0):.2f}"),
-        #     ("TPSA", lambda: f"{generate_random_number(90, 140):.2f}"),
-        #     ("CLOGP", lambda: f"{generate_random_number(-1, 4):.2f}")
-        # ),
-        # "pmo.ranolazine_mpo": (
-        #     ("SIMILAR", lambda: f"COc1ccccc1OCC(O)CN1CCN(CC(=O)Nc2c(C)cccc2C)CC1 {generate_random_number(0.7, 1.0):.2f}"),
-        #     ("CLOGP", lambda: f"{generate_random_number(7, 13):.2f}"),
-        #     ("TPSA", lambda: f"{generate_random_number(95, 140):.2f}")
-        # ),
-        # "pmo.perindopril_mpo": (
-        #     ("SIMILAR", lambda: f"CCCC(NC(C)C(=O)N1C(C(=O)O)CC2CCCCC21)C(=O)OCC {generate_random_number(0.9, 1.0):.2f}"),
-        #     ("NUMAROMATICRINGS", lambda: "2")
-        # ),
-        # "pmo.zaleplon_mpo": (
-        #     ("SIMILAR", lambda: f"CCN(C(C)=O)c1cccc(-c2ccnc3c(C#N)cnn23)c1 {generate_random_number(0.9, 1.0):.2f}"),
-        #     ("FORMULA", lambda: "C19H17N3O2")
-        # ),
-        # "pmo.amlodipine_mpo": (
-        #     ("SIMILAR", lambda: f"CCOC(=O)C1=C(COCCN)NC(C)=C(C(=O)OC)C1c1ccccc1Cl {generate_random_number(0.9, 1.0):.2f}"),
-        #     ("NUMRINGS", lambda: "3")
-        # ),
-        "geam.parp1": (
-            # ("QED", lambda: f"{generate_random_number(0.5, 0.94):.2f}"),
-            # ("SAS", lambda: f"{generate_random_number(1, 5):.2f}")
-        ),
-        "geam.fa7": (
-            # ("QED", lambda: f"{generate_random_number(0.5, 0.94):.2f}"),
-            # ("SAS", lambda: f"{generate_random_number(1, 5):.2f}")
-        ),
-        "geam.5ht1b": (
-            # ("QED", lambda: f"{generate_random_number(0.5, 0.94):.2f}"),
-            # ("SAS", lambda: f"{generate_random_number(1, 5):.2f}")
-        ),
-        "geam.braf": (
-            # ("QED", lambda: f"{generate_random_number(0.5, 0.94):.2f}"),
-            # ("SAS", lambda: f"{generate_random_number(1, 5):.2f}")
-        ),
-        "geam.jak2": (
-            # ("QED", lambda: f"{generate_random_number(0.5, 0.94):.2f}"),
-            # ("SAS", lambda: f"{generate_random_number(1, 5):.2f}")
-        ),
-        "dock.parp1": (
+        "hit.parp1": (
             ("QED", lambda: "[0.5, 0.94]"),
-            ("SAS", lambda: "[1, 5]")
+            ("SAS", lambda: "[1.0, 5.0]")
         ),
-        "dock.fa7": (
+        "hit.fa7": (
             ("QED", lambda: "[0.5, 0.94]"),
-            ("SAS", lambda: "[1, 5]")
+            ("SAS", lambda: "[1.0, 5.0]")
         ),
-        "dock.5ht1b": (
+        "hit.5ht1b": (
             ("QED", lambda: "[0.5, 0.94]"),
-            ("SAS", lambda: "[1, 5]")
+            ("SAS", lambda: "[1.0, 5.0]")
         ),
-        "dock.braf": (
+        "hit.braf": (
             ("QED", lambda: "[0.5, 0.94]"),
-            ("SAS", lambda: "[1, 5]")
+            ("SAS", lambda: "[1.0, 5.0]")
         ),
-        "dock.jak2": (
+        "hit.jak2": (
             ("QED", lambda: "[0.5, 0.94]"),
-            ("SAS", lambda: "[1, 5]")
+            ("SAS", lambda: "[1.0, 5.0]")
         ),
         "lead.parp1_04_0": (
             ("SIMILAR", lambda: f"{parp1_0} [0.40,1.00]"),
@@ -346,52 +291,15 @@ def props_dict_from_task(full_task_name: str):
             ("SIMILAR", lambda: f"{jak2_2} [0.60,1.00]"),
             ("QED", lambda: "[0.60,1.00]"),
             ("SAS", lambda: "[1.00,4.00]")
-        ),  
-        "lead.jnk3_04_0": (
-            ("SIMILAR", lambda: f"{parp1_0} [0.40,1.00]"),
-            ("QED", lambda: "[0.60,1.00]"),
-            ("SAS", lambda: "[1.00,4.00]")
-        ),
-        "lead.drd2_04_0": (
-            ("SIMILAR", lambda: f"{parp1_0} [0.40,1.00]"),
-            ("QED", lambda: "[0.60,1.00]"),
-            ("SAS", lambda: "[1.00,4.00]")
-        ),
-        "lead.gsk3b_04_0": (
-            ("SIMILAR", lambda: f"{parp1_0} [0.40,1.00]"),
-            ("QED", lambda: "[0.60,1.00]"),
-            ("SAS", lambda: "[1.00,4.00]")
-        ),
-        "hit.jnk3_04_0": (
-            ("QED", lambda: "[0.60,1.00]"),
-            ("SAS", lambda: "[1.00,4.00]"),
-            ("DOCKING SCORE", lambda: "[0.60,1.00]")
-        ),
-        "hit.drd2_04_0": (
-            ("QED", lambda: "[0.60,1.00]"),
-            ("SAS", lambda: "[1.00,4.00]"),
-            ("DOCKING SCORE", lambda: "[0.60,1.00]")
-        ),
-        "hit.gsk3b_04_0": (
-            ("QED", lambda: "[0.60,1.00]"),
-            ("SAS", lambda: "[1.00,4.00]"),
-            ("DOCKING SCORE", lambda: "[0.60,1.00]")
-        ),
-        "spec.6nzp_7uyt": (
-            ("QED", lambda: "[0.40,1.00]"),
-            ("SAS", lambda: "[1.00,4.00]"),
-            ("DOCKING SCORE", lambda: "[10.67,20.00]")
-        ),
-        "spec.6nzp_5ut5": (
-            ("QED", lambda: "[0.40,1.00]"),
-            ("SAS", lambda: "[1.00,4.00]"),
-            ("DOCKING SCORE", lambda: "[10.67,20.00]")
-        ),
-        "spec.6nzp_7uyw": (
-            ("QED", lambda: "[0.40,1.00]"),
-            ("SAS", lambda: "[1.00,4.00]"),
-            ("DOCKING SCORE", lambda: "[10.67,20.00]")
-        ),
+        ), 
+        **{
+            spec_task_name(at): (
+                ("QED", lambda: "[0.40,1.00]"),
+                ("SAS", lambda: "[1.00,4.00]"),
+                ("DOCKING SCORE", lambda: "[10.67,20.00]"),
+            )
+            for at in ANTITARGET_RECEPTORS
+        },
     }
     prop_list = prop_dict[full_task_name]
 
@@ -431,8 +339,19 @@ def create_prompts(
     return prompts
 
 
+def resolve_oracle_task_name(oracle_cfg) -> str:
+    task_name = OmegaConf.select(oracle_cfg, "task_name", default=None)
+    if task_name:
+        return str(task_name)
+    legacy = OmegaConf.select(oracle_cfg, "name", default=None)
+    if legacy:
+        return str(legacy)
+    raise ValueError("oracle.task_name is required in config")
+
+
 def search(args):
     log_dir = args.oracle.log_dir
+    task_name = resolve_oracle_task_name(args.oracle)
     # Setup logging
     run_log_path = os.path.join(log_dir, "run.log")
     setup_logging(run_log_path)
@@ -447,19 +366,21 @@ def search(args):
     # Use device_map dict format for explicit single-device placement
     model = AutoModelForCausalLM.from_pretrained(
         checkpoint_path,
-        dtype=torch.bfloat16,
+        torch_dtype=torch.bfloat16,
         low_cpu_mem_usage=True,
         device_map={"": args.device},  # Explicitly map all layers to the specified device
         attn_implementation="sdpa",  # Use efficient SDPA attention
-        local_files_only=True,
+        local_files_only=bool(os.environ.get("HF_LOCAL_MODEL_DIR", "").strip()),
     )
     model.eval()  # Set to eval mode to disable gradients and reduce memory
-    tokenizer = AutoTokenizer.from_pretrained(
+    tokenizer = PreTrainedTokenizerFast.from_pretrained(
         tokenizer_path,
         padding_side="left",
-        local_files_only=True,
+        local_files_only=bool(os.environ.get("HF_LOCAL_TOKENIZER_DIR", "").strip()),
     )
-    tokenizer.pad_token_id = tokenizer.get_vocab()[args.model.pad_token]
+    pad_token_id = tokenizer.convert_tokens_to_ids(str(args.model.pad_token))
+    if pad_token_id != tokenizer.unk_token_id:
+        tokenizer.pad_token_id = pad_token_id
 
     # Optional: HTTP DockingVina service URL. If absent, property_computers uses local quickvina.
     vina_url = OmegaConf.select(args, "vina_url", default=None)
@@ -467,7 +388,7 @@ def search(args):
     use_oracles_app = OmegaConf.select(args, "oracle.use_oracles_app", default=False)
     oracle = select_oracle(
         reward_type=args.oracle.reward_type,
-        task_name=args.oracle.name,
+        task_name=task_name,
         log_dir=args.oracle.log_dir,
         max_oracle_calls=args.oracle.max_calls,
         vina_url=vina_url,
@@ -479,25 +400,8 @@ def search(args):
     # Track oracle call statistics
     total_oracle_calls = 0
     total_wasted_calls = 0
-    # temp_scheduler = TempScheduler(
-    #     start_temp=args.genetic.temp_schedule[0],
-    #     end_temp=args.genetic.temp_schedule[1],
-    #     num_steps=args.oracle.max_calls // args.genetic.num_prompts
-    # )
 
     entries: List[Entry] = []
-    # random_smiles = pd.read_csv("/auto/home/tigranfahradyan/vector_dbs/random_pubchem_smiles.csv")["smiles"].values
-    # scores = oracle(random_smiles)
-    # for mol, score in zip(random_smiles, scores, strict=True):
-    #     entries.append(
-    #         Entry(
-    #             smiles=mol,
-    #             score=score,
-    #             representation=args.model.representation
-    #         )
-    #     )
-    # pool.add(entries)
-    # entries.clear()
 
     num_iter = 0
     oracle_calls_trend = []
@@ -518,10 +422,8 @@ def search(args):
                 args.model,
                 args.genetic,
                 include_start_token=True,
-                task_name=args.oracle.name
+                task_name=task_name
             )
-            if "chemlactica" in args.model.checkpoint_path.lower():
-                prompts = [tokenizer.eos_token + p for p in prompts]
 
             gen_config = OmegaConf.to_container(args.generation)
             gen_batch_size = getattr(args.model, 'gen_batch_size', 32)
@@ -564,8 +466,12 @@ def search(args):
 
         # keep only the unique molecules and prompts
         remaining_num_mols = args.genetic.num_prompts - len(entries)
-        unique_mols = unique_mols[:remaining_num_mols]
-        unique_prompts = unique_prompts[:remaining_num_mols]
+        remaining_budget = args.oracle.max_calls - len(oracle.mol_buffer)
+        if remaining_budget <= 0:
+            break
+        batch_limit = min(remaining_num_mols, remaining_budget)
+        unique_mols = unique_mols[:batch_limit]
+        unique_prompts = unique_prompts[:batch_limit]
 
         # Count wasted calls (molecules already in buffer)
         wasted_calls = sum(1 for mol in unique_mols if mol in oracle.mol_buffer)
@@ -619,7 +525,7 @@ if __name__ == "__main__":
        
     parser.add_argument("--config_file", required=False, type=str)
     parser.add_argument("--seeds", nargs="+", required=False, type=int)
-    parser.add_argument("--oracle.name", required=False, type=str)
+    parser.add_argument("--oracle.task_name", required=False, type=str)
     #parser.add_argument("--oracle_calls", required=False, type=int)
     parser.add_argument("--n_gpus", required=False, default=1, type=int)
     parser.add_argument("--hparam_config", type=str, required=False, default=None)

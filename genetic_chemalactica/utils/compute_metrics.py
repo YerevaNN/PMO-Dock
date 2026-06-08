@@ -12,7 +12,10 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils.file import merge_csvs, load_csv
-from benchmark.guacamol_assets import lead_seed_smiles, perindopril_smiles
+
+from benchmark.actives_loader import lead_seed_smiles
+from benchmark.docking_oracle.docking import ANTITARGET_RECEPTORS
+from benchmark.spec_tasks import spec_task_name
 
 parp1_0 = lead_seed_smiles("parp1", 0)
 parp1_1 = lead_seed_smiles("parp1", 1)
@@ -61,57 +64,40 @@ MEDIAN_DOCKING_SCORES = {
 }
 
 
+def _spec_hit_thresholds(antitarget: str):
+    return {
+        "DOCKING.6nzp": lambda v: v >= 10.67,
+        f"DOCKING.{antitarget}": lambda v: v >= 0.0,
+        "SAS": lambda v: v <= 4.0,
+        "QED": lambda v: v >= 0.4,
+    }
+
+
 def task_name2hit_thresholds(task_name):
     return {
-        "spec.6nzp_7uyt": {
-            "DOCKING.6nzp": lambda v: v >= 10.67,
-            "DOCKING.7uyt": lambda v: v >= 0.0,
-            "SAS": lambda v: v <= 4.0,
-            "QED": lambda v: v >= 0.4
-        },
-        "spec.6nzp_5ut5": {
-            "DOCKING.6nzp": lambda v: v >= 10.67,
-            "DOCKING.5ut5": lambda v: v >= 0.0,
-            "SAS": lambda v: v <= 4.0,
-            "QED": lambda v: v >= 0.4
-        },
-        "spec.6nzp_7uyw": {
-            "DOCKING.6nzp": lambda v: v >= 10.67,
-            "DOCKING.7uyw": lambda v: v >= 0.0,
-            "SAS": lambda v: v <= 4.0,
-            "QED": lambda v: v >= 0.4
-        },
-        "dock.parp1": {
+        **{spec_task_name(at): _spec_hit_thresholds(at) for at in ANTITARGET_RECEPTORS},
+        "hit.parp1": {
             "DOCKING.parp1": lambda v: v >= 10.0,
             "SAS": lambda v: v <= 5,
             "QED": lambda v: v >= 0.5
         },
-        "dock.fa7": {
+        "hit.fa7": {
             "DOCKING.fa7": lambda v: v >= 8.5,
             "SAS": lambda v: v <= 5,
             "QED": lambda v: v >= 0.5
         },
-        "dock.5ht1b": {
+        "hit.5ht1b": {
             "DOCKING.5ht1b": lambda v: v >= 8.7845,
             "SAS": lambda v: v <= 5,
             "QED": lambda v: v >= 0.5
         },
-        "dock.braf": {
+        "hit.braf": {
             "DOCKING.braf": lambda v: v >= 10.3,
             "SAS": lambda v: v <= 5,
             "QED": lambda v: v >= 0.5
         },
-        "dock.jak2": {
+        "hit.jak2": {
             "DOCKING.jak2": lambda v: v >= 9.1,
-            "SAS": lambda v: v <= 5,
-            "QED": lambda v: v >= 0.5
-        },
-        "pmo.perindopril_mpo": {
-            f"SIMILAR.{perindopril_smiles}": lambda v: v >= 0.5,
-            "NUMAROMATICRINGS": lambda v: v == 2
-        },
-        "pmo.perindopril_mpo_prop": {
-            f"SIMILAR.{perindopril_smiles}": lambda v: v >= 0.6,
             "SAS": lambda v: v <= 5,
             "QED": lambda v: v >= 0.5
         },
@@ -264,63 +250,6 @@ def task_name2hit_thresholds(task_name):
             f"SIMILAR.{jak2_2}": lambda v: v >= 0.6,
             "QED": lambda v: v >= 0.6,
             "SAS": lambda v: v <= 4
-        },
-        "lead.jnk3_04_0": {
-            f"SIMILAR.{parp1_0}": lambda v: v >= 0.4,
-            "QED": lambda v: v >= 0.6,
-            "SAS": lambda v: v <= 4
-        },
-        "lead.jnk3_06_0": {
-            f"SIMILAR.{parp1_0}": lambda v: v >= 0.6,
-            "QED": lambda v: v >= 0.6,
-            "SAS": lambda v: v <= 4
-        },
-        "lead.drd2_04_0": {
-            f"SIMILAR.{parp1_0}": lambda v: v >= 0.4,
-            "QED": lambda v: v >= 0.6,
-            "SAS": lambda v: v <= 4
-        },
-        "lead.drd2_06_0": {
-            f"SIMILAR.{parp1_0}": lambda v: v >= 0.6,
-            "QED": lambda v: v >= 0.6,
-            "SAS": lambda v: v <= 4
-        },
-        "lead.gsk3b_04_0": {
-            f"SIMILAR.{parp1_0}": lambda v: v >= 0.4,
-            "QED": lambda v: v >= 0.6,
-            "SAS": lambda v: v <= 4
-        },
-        "lead.gsk3b_06_0": {
-            f"SIMILAR.{parp1_0}": lambda v: v >= 0.6,
-            "QED": lambda v: v >= 0.6,
-            "SAS": lambda v: v <= 4
-        },
-        "lead_no_sim.jnk3_04_0": {
-            "QED": lambda v: v >= 0.6,
-            "SAS": lambda v: v <= 4
-        },
-        "lead_no_sim.drd2_04_0": {
-            "QED": lambda v: v >= 0.6,
-            "SAS": lambda v: v <= 4
-        },
-        "lead_no_sim.gsk3b_04_0": {
-            "QED": lambda v: v >= 0.6,
-            "SAS": lambda v: v <= 4
-        },
-        "hit.jnk3_04_0": {
-            "JNK3": lambda v: v >= 0.6,
-            "SAS": lambda v: v <= 5,
-            "QED": lambda v: v >= 0.5
-        },
-        "hit.drd2_04_0": {
-            "DRD2": lambda v: v >= 0.6,
-            "SAS": lambda v: v <= 5,
-            "QED": lambda v: v >= 0.5
-        },
-        "hit.gsk3b_04_0": {
-            "GSK3B": lambda v: v >= 0.6,
-            "SAS": lambda v: v <= 5,
-            "QED": lambda v: v >= 0.5
         }
     }[task_name]
 

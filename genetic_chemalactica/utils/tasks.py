@@ -2,16 +2,84 @@ import math
 
 import numpy as np
 
-from benchmark.guacamol_assets import (
-    amlodipine_smiles,
-    fexofenadine_smiles,
-    lead_seed_smiles,
-    osimertinib_smiles,
-    perindopril_smiles,
-    ranolazine_smiles,
-    sitagliptin_smiles,
-    zaleplon_smiles,
+from benchmark.actives_loader import lead_seed_smiles
+from benchmark.docking_oracle.docking import ANTITARGET_RECEPTORS
+from benchmark.spec_tasks import spec_task_name
+
+_SPEC_PROMPT = (
+    f"[DOCKING_SCORE][10.67,20.00][/DOCKING_SCORE]"
+    f"[QED][0.40,1.00][/QED]"
+    f"[SAS][1.00,4.00][/SAS]"
 )
+_SPEC_HIT_RANGES = [[10.67, math.inf], [0.0, math.inf], [0.4, 1.0], [1.0, 4.0]]
+
+
+def _spec_prompt_dict():
+    return {spec_task_name(at): _SPEC_PROMPT for at in ANTITARGET_RECEPTORS}
+
+
+def _spec_computer_names():
+    return {
+        spec_task_name(at): ["DOCKING.6nzp", f"DOCKING.{at}", "QED", "SAS"]
+        for at in ANTITARGET_RECEPTORS
+    }
+
+
+def _spec_hit_ranges_dict():
+    return {spec_task_name(at): _SPEC_HIT_RANGES for at in ANTITARGET_RECEPTORS}
+
+
+_ALLOWED_TASK_PREFIXES = ("hit.", "lead.", "spec.")
+_ALLOWED_HIT_REWARD_TYPES = frozenset({"hit", "max", "geam"})
+_HIT_TARGETS = frozenset({"parp1", "fa7", "5ht1b", "braf", "jak2"})
+
+
+def validate_task_name(task_name: str) -> str:
+    if not task_name or "." not in task_name:
+        raise ValueError(
+            f"Task name '{task_name}' is invalid. "
+            "Use hit.<target>, lead.<target>_<sim>_<seed>, or spec.6nzp_<antitarget>."
+        )
+    if task_name.startswith("dock."):
+        raise ValueError(
+            f"Task name '{task_name}' is not supported. "
+            "Use hit.<target> instead of dock.<target> (e.g. hit.parp1)."
+        )
+    if task_name.lower().startswith("geam") or task_name.lower().split(".", 1)[0] == "geam":
+        raise ValueError(
+            f"Task name '{task_name}' is not supported. "
+            "GEAM is a reward/oracle mode in Saturn and GenMol, not a genetic_chemalactica task prefix."
+        )
+    if task_name.startswith(("pmo.", "lead_no_sim.")):
+        raise ValueError(
+            f"Task name '{task_name}' is not supported in genetic_chemalactica. "
+            "Use hit.<target>, lead.<target>_<sim>_<seed>, or spec.6nzp_<antitarget>."
+        )
+    if not any(task_name.startswith(prefix) for prefix in _ALLOWED_TASK_PREFIXES):
+        raise ValueError(
+            f"Task name '{task_name}' must start with one of: {', '.join(_ALLOWED_TASK_PREFIXES)}"
+        )
+    return task_name
+
+
+def is_hit_docking_task(task_name: str) -> bool:
+    """True for hit.<target> docking tasks (not lead or spec)."""
+    if not task_name.startswith("hit."):
+        return False
+    target = task_name.split(".", 1)[1]
+    return target in _HIT_TARGETS
+
+
+def validate_reward_type(task_name: str, reward_type: str) -> str:
+    """Validate --reward_type for hit.<target> docking tasks (hit, max, or geam)."""
+    reward_type = (reward_type or "hit").strip().lower()
+    if is_hit_docking_task(task_name) and reward_type not in _ALLOWED_HIT_REWARD_TYPES:
+        raise ValueError(
+            f"reward_type '{reward_type}' is invalid for {task_name}. "
+            f"Allowed values: {', '.join(sorted(_ALLOWED_HIT_REWARD_TYPES))}."
+        )
+    return reward_type
+
 
 parp1_0 = lead_seed_smiles("parp1", 0)
 parp1_1 = lead_seed_smiles("parp1", 1)
@@ -39,11 +107,6 @@ def select_sigma(prop_name: str):
         "WEIGHT": coef * 1000,
         "RINGCOUNT": coef * 5,
         "NUMAROMATICRINGS": coef * 5,
-
-        # Binding predictors
-        "JNK3": coef * 1,
-        "DRD2": coef * 1,
-        "GSK3B": coef * 1
     }
     
     if prop_name in prop_name2sigma:
@@ -66,90 +129,59 @@ def randfloat(min_value: float, max_value: float):
 
 
 def task_name2grpo_prompt(task_name: str, start_token: str, ranged: bool=True):
+    validate_task_name(task_name)
     task_name2randomized_prompt = {
-        "dock.parp1": (
+        "hit.parp1": (
             f"[PROPERTY]parp1 {randfloat(10.0, 20.0):.2f}[/PROPERTY]"
             f"[QED]{randfloat(0.5, 1.0):.2f}[/QED]"
             f"[SAS]{randfloat(1.0, 5.0):.2f}[/SAS]"
         ),
-        "dock.fa7": (
+        "hit.fa7": (
             f"[PROPERTY]fa7 {randfloat(10.0, 20.0):.2f}[/PROPERTY]"
             f"[QED]{randfloat(0.5, 1.0):.2f}[/QED]"
             f"[SAS]{randfloat(1.0, 5.0):.2f}[/SAS]"
         ),
-        "dock.5ht1b": (
+        "hit.5ht1b": (
             f"[PROPERTY]5ht1b {randfloat(10.0, 20.0):.2f}[/PROPERTY]"
             f"[QED]{randfloat(0.5, 1.0):.2f}[/QED]"
             f"[SAS]{randfloat(1.0, 5.0):.2f}[/SAS]"
         ),
-        "dock.braf": (
+        "hit.braf": (
             f"[PROPERTY]braf {randfloat(10.0, 20.0):.2f}[/PROPERTY]"
             f"[QED]{randfloat(0.5, 1.0):.2f}[/QED]"
             f"[SAS]{randfloat(1.0, 5.0):.2f}[/SAS]"
         ),
-        "dock.jak2": (
+        "hit.jak2": (
             f"[PROPERTY]jak2 {randfloat(10.0, 20.0):.2f}[/PROPERTY]"
-            f"[QED]{randfloat(0.5, 1.0):.2f}[/QED]"
-            f"[SAS]{randfloat(1.0, 5.0):.2f}[/SAS]"
-        ),
-        "pmo.perindopril_mpo": (
-            f"[SIMILAR]{perindopril_smiles} {randfloat(0.95, 1.0):.2f}[/SIMILAR]"
-            f"[NUMAROMATICRINGS]{randint(2, 2)}[/NUMAROMATICRINGS]"
-        ),
-        "pmo.perindopril_mpo_prop": (
-            f"[PROPERTY]SIMILAR {randfloat(0.2, 1.0):.2f}[/PROPERTY]"
             f"[QED]{randfloat(0.5, 1.0):.2f}[/QED]"
             f"[SAS]{randfloat(1.0, 5.0):.2f}[/SAS]"
         ),
     }
 
     task_name2prompt = {
-        "spec.6nzp_7uyt": (
-            f"[DOCKING_SCORE][10.67,20.00][/DOCKING_SCORE]"
-            f"[QED][0.40,1.00][/QED]"
-            f"[SAS][1.00,4.00][/SAS]"
-        ),
-        "spec.6nzp_5ut5": (
-            f"[DOCKING_SCORE][10.67,20.00][/DOCKING_SCORE]"
-            f"[QED][0.40,1.00][/QED]"
-            f"[SAS][1.00,4.00][/SAS]"
-        ),
-        "spec.6nzp_7uyw": (
-            f"[DOCKING_SCORE][10.67,20.00][/DOCKING_SCORE]"
-            f"[QED][0.40,1.00][/QED]"
-            f"[SAS][1.00,4.00][/SAS]"
-        ),
-        "dock.parp1": (
+        **_spec_prompt_dict(),
+        "hit.parp1": (
             f"[DOCKING_SCORE][10.00,20.00][/DOCKING_SCORE]"
             f"[QED][0.50,1.00][/QED]"
             f"[SAS][1.00,5.00][/SAS]"
         ),
-        "dock.fa7": (
+        "hit.fa7": (
             f"[DOCKING_SCORE][8.50,20.00][/DOCKING_SCORE]"
             f"[QED][0.50,1.00][/QED]"
             f"[SAS][1.00,5.00][/SAS]"
         ),
-        "dock.5ht1b": (
+        "hit.5ht1b": (
             f"[DOCKING_SCORE][8.79,20.00][/DOCKING_SCORE]"
             f"[QED][0.50,1.00][/QED]"
             f"[SAS][1.00,5.00][/SAS]"
         ),
-        "dock.braf": (
+        "hit.braf": (
             f"[DOCKING_SCORE][10.30,20.00][/DOCKING_SCORE]"
             f"[QED][0.50,1.00][/QED]"
             f"[SAS][1.00,5.00][/SAS]"
         ),
-        "dock.jak2": (
+        "hit.jak2": (
             f"[DOCKING_SCORE][9.10,20.00][/DOCKING_SCORE]"
-            f"[QED][0.50,1.00][/QED]"
-            f"[SAS][1.00,5.00][/SAS]"
-        ),
-        "pmo.perindopril_mpo": (
-            f"[SIMILAR]{perindopril_smiles} [0.95,1.00][/SIMILAR]"
-            f"[NUMAROMATICRINGS][2,2][/NUMAROMATICRINGS]"
-        ),
-        "pmo.perindopril_mpo_prop": (
-            f"[DOCKING_SCORE][10.00,20.00][/DOCKING_SCORE]"
             f"[QED][0.50,1.00][/QED]"
             f"[SAS][1.00,5.00][/SAS]"
         ),
@@ -333,72 +365,6 @@ def task_name2grpo_prompt(task_name: str, start_token: str, ranged: bool=True):
             f"[SAS][1.00,4.00][/SAS]"
             f"[DOCKING_SCORE]20.00[/DOCKING_SCORE]"
         ),
-        "lead.jnk3_04_0": (
-            f"[SIMILAR]{parp1_0} [0.40,1.00][/SIMILAR]"
-            f"[QED][0.60,1.00][/QED]"
-            f"[SAS][1.00,4.00][/SAS]"
-            f"[DOCKING_SCORE]20.00[/DOCKING_SCORE]"
-        ),
-        "lead.jnk3_06_0": (
-            f"[SIMILAR]{parp1_0} [0.60,1.00][/SIMILAR]"
-            f"[QED][0.60,1.00][/QED]"
-            f"[SAS][1.00,4.00][/SAS]"
-            f"[DOCKING_SCORE]20.00[/DOCKING_SCORE]"
-        ),
-        "lead.drd2_04_0": (
-            f"[SIMILAR]{parp1_0} [0.40,1.00][/SIMILAR]"
-            f"[QED][0.60,1.00][/QED]"
-            f"[SAS][1.00,4.00][/SAS]"
-            f"[DOCKING_SCORE]20.00[/DOCKING_SCORE]"
-        ),
-        "lead.drd2_06_0": (
-            f"[SIMILAR]{parp1_0} [0.60,1.00][/SIMILAR]"
-            f"[QED][0.60,1.00][/QED]"
-            f"[SAS][1.00,4.00][/SAS]"
-            f"[DOCKING_SCORE]20.00[/DOCKING_SCORE]"
-        ),
-        "lead.gsk3b_04_0": (
-            f"[SIMILAR]{parp1_0} [0.40,1.00][/SIMILAR]"
-            f"[QED][0.60,1.00][/QED]"
-            f"[SAS][1.00,4.00][/SAS]"
-            f"[DOCKING_SCORE]20.00[/DOCKING_SCORE]"
-        ),
-        "lead.gsk3b_06_0": (
-            f"[SIMILAR]{parp1_0} [0.60,1.00][/SIMILAR]"
-            f"[QED][0.60,1.00][/QED]"
-            f"[SAS][1.00,4.00][/SAS]"
-            f"[DOCKING_SCORE]20.00[/DOCKING_SCORE]"
-        ),
-        "lead_no_sim.jnk3_04_0": (
-            f"[QED][0.60,1.00][/QED]"
-            f"[SAS][1.00,4.00][/SAS]"
-            f"[DOCKING_SCORE][0.60,1.00][/DOCKING_SCORE]"
-        ),
-        "lead_no_sim.drd2_04_0": (
-            f"[QED][0.60,1.00][/QED]"
-            f"[SAS][1.00,4.00][/SAS]"
-            f"[DOCKING_SCORE][0.60,1.00][/DOCKING_SCORE]"
-        ),
-        "lead_no_sim.gsk3b_04_0": (
-            f"[QED][0.60,1.00][/QED]"
-            f"[SAS][1.00,4.00][/SAS]"
-            f"[DOCKING_SCORE][0.60,1.00][/DOCKING_SCORE]"
-        ),
-        "hit.jnk3_04_0": (
-            f"[QED][0.60,1.00][/QED]"
-            f"[SAS][1.00,4.00][/SAS]"
-            f"[DOCKING_SCORE]20.00[/DOCKING_SCORE]"
-        ),
-        "hit.drd2_04_0": (
-            f"[QED][0.60,1.00][/QED]"
-            f"[SAS][1.00,4.00][/SAS]"
-            f"[DOCKING_SCORE]20.00[/DOCKING_SCORE]"
-        ),
-        "hit.gsk3b_04_0": (
-            f"[QED][0.60,1.00][/QED]"
-            f"[SAS][1.00,4.00][/SAS]"
-            f"[DOCKING_SCORE]20.00[/DOCKING_SCORE]"
-        )
     }
     if ranged is False and task_name in task_name2randomized_prompt:
         return task_name2randomized_prompt[task_name] + start_token
@@ -408,28 +374,17 @@ def task_name2grpo_prompt(task_name: str, start_token: str, ranged: bool=True):
 
 
 def task_name2computer_names(task_name: str):
+    task_name = validate_task_name(task_name)
     task_name2computer_names_dict = {
-        # pmo oracles
-        "pmo.osimertinib_mpo": [f"SIMILAR.{osimertinib_smiles}", "TPSA", "CLOGP"],
-        "pmo.fexofenadine_mpo": [f"SIMILAR.{fexofenadine_smiles}", "TPSA", "CLOGP"],
-        "pmo.ranolazine_mpo": [f"SIMILAR.{ranolazine_smiles}", "CLOGP", "TPSA"],
-        "pmo.perindopril_mpo": [f"SIMILAR.{perindopril_smiles}", "NUMAROMATICRINGS"],
-        "pmo.perindopril_mpo_prop": [f"SIMILAR.{perindopril_smiles}", "QED", "SAS"],
-        "pmo.amlodipine_mpo": [f"SIMILAR.{amlodipine_smiles}", "NUMRINGS"],
-        "pmo.sitagliptin_mpo": [f"SIMILAR.{sitagliptin_smiles}", "CLOGP", "TPSA", "FORMULA"],
-        "pmo.zaleplon_mpo": [f"SIMILAR.{zaleplon_smiles}", "FORMULA"],
-
         # spec oracles
-        "spec.6nzp_7uyt": ["DOCKING.6nzp", "DOCKING.7uyt", "QED", "SAS"],
-        "spec.6nzp_5ut5": ["DOCKING.6nzp", "DOCKING.5ut5", "QED", "SAS"],
-        "spec.6nzp_7uyw": ["DOCKING.6nzp", "DOCKING.7uyw", "QED", "SAS"],
+        **_spec_computer_names(),
 
         # docking oracles
-        "dock.parp1": ["DOCKING.parp1", "QED", "SAS"],
-        "dock.jak2": ["DOCKING.jak2", "QED", "SAS"],
-        "dock.braf": ["DOCKING.braf", "QED", "SAS"],
-        "dock.fa7": ["DOCKING.fa7", "QED", "SAS"],
-        "dock.5ht1b": ["DOCKING.5ht1b", "QED", "SAS"],
+        "hit.parp1": ["DOCKING.parp1", "QED", "SAS"],
+        "hit.jak2": ["DOCKING.jak2", "QED", "SAS"],
+        "hit.braf": ["DOCKING.braf", "QED", "SAS"],
+        "hit.fa7": ["DOCKING.fa7", "QED", "SAS"],
+        "hit.5ht1b": ["DOCKING.5ht1b", "QED", "SAS"],
 
         # lead oracles
         "lead.parp1_04_0": ["DOCKING.parp1", f"SIMILAR.{parp1_0}", "QED", "SAS"],
@@ -462,17 +417,6 @@ def task_name2computer_names(task_name: str):
         "lead.jak2_06_0": ["DOCKING.jak2", f"SIMILAR.{jak2_0}", "QED", "SAS"],
         "lead.jak2_06_1": ["DOCKING.jak2", f"SIMILAR.{jak2_1}", "QED", "SAS"],
         "lead.jak2_06_2": ["DOCKING.jak2", f"SIMILAR.{jak2_2}", "QED", "SAS"],
-        "lead.jnk3_04_0": ["JNK3", f"SIMILAR.{parp1_0}", "QED", "SAS"],
-        "lead.drd2_04_0": ["DRD2", f"SIMILAR.{parp1_0}", "QED", "SAS"],
-        "lead.gsk3b_04_0": ["GSK3B", f"SIMILAR.{parp1_0}", "QED", "SAS"],
-        
-        "lead_no_sim.jnk3_04_0": ["JNK3", "QED", "SAS"],
-        "lead_no_sim.drd2_04_0": ["DRD2", "QED", "SAS"],
-        "lead_no_sim.gsk3b_04_0": ["GSK3B", "QED", "SAS"],
-
-        "hit.jnk3_04_0": ["JNK3", "QED", "SAS"],
-        "hit.drd2_04_0": ["DRD2", "QED", "SAS"],
-        "hit.gsk3b_04_0": ["GSK3B", "QED", "SAS"],
     }
     if task_name in task_name2computer_names_dict.keys():
         return task_name2computer_names_dict[task_name]
@@ -481,21 +425,17 @@ def task_name2computer_names(task_name: str):
 
 
 def task_name2hit_ranges(task_name: str):
+    task_name = validate_task_name(task_name)
     return {
-        # pmo oracles
-        "pmo.perindopril_mpo_prop": [[0.6, 1.0], [0.5, 1.0], [1.0, 5.0]],
-        
         # spec oracles
-        "spec.6nzp_7uyt": [[10.67, math.inf], [0.0, math.inf], [0.4, 1.0], [1.0, 4.0]],
-        "spec.6nzp_5ut5": [[10.67, math.inf], [0.0, math.inf], [0.4, 1.0], [1.0, 4.0]],
-        "spec.6nzp_7uyw": [[10.67, math.inf], [0.0, math.inf], [0.4, 1.0], [1.0, 4.0]],
+        **_spec_hit_ranges_dict(),
 
         # docking oracles
-        "dock.parp1": [[10.0, math.inf], [0.5, 1.0], [1.0, 5.0]],
-        "dock.fa7": [[8.5, math.inf], [0.5, 1.0], [1.0, 5.0]],
-        "dock.5ht1b": [[8.7845, math.inf], [0.5, 1.0], [1.0, 5.0]],
-        "dock.braf": [[10.3, math.inf], [0.5, 1.0], [1.0, 5.0]],
-        "dock.jak2": [[9.1, math.inf], [0.5, 1.0], [1.0, 5.0]],
+        "hit.parp1": [[10.0, math.inf], [0.5, 1.0], [1.0, 5.0]],
+        "hit.fa7": [[8.5, math.inf], [0.5, 1.0], [1.0, 5.0]],
+        "hit.5ht1b": [[8.7845, math.inf], [0.5, 1.0], [1.0, 5.0]],
+        "hit.braf": [[10.3, math.inf], [0.5, 1.0], [1.0, 5.0]],
+        "hit.jak2": [[9.1, math.inf], [0.5, 1.0], [1.0, 5.0]],
 
 
         # lead oracles
@@ -529,18 +469,4 @@ def task_name2hit_ranges(task_name: str):
         "lead.jak2_06_0": [None, [0.6, 1.0], [0.6, 1.0], [1.0, 4.0]],
         "lead.jak2_06_1": [None, [0.6, 1.0], [0.6, 1.0], [1.0, 4.0]],
         "lead.jak2_06_2": [None, [0.6, 1.0], [0.6, 1.0], [1.0, 4.0]],
-        "lead.jnk3_04_0": [None, [0.4, 1.0], [0.6, 1.0], [1.0, 4.0]],
-        "lead.drd2_04_0": [None, [0.4, 1.0], [0.6, 1.0], [1.0, 4.0]],
-        "lead.gsk3b_04_0": [None, [0.4, 1.0], [0.6, 1.0], [1.0, 4.0]],
-        "lead.jnk3_06_0": [None, [0.6, 1.0], [0.6, 1.0], [1.0, 4.0]],
-        "lead.drd2_06_0": [None, [0.6, 1.0], [0.6, 1.0], [1.0, 4.0]],
-        "lead.gsk3b_06_0": [None, [0.6, 1.0], [0.6, 1.0], [1.0, 4.0]],
-
-        "lead_no_sim.jnk3_04_0": [None, [0.6, 1.0], [1.0, 4.0]],
-        "lead_no_sim.drd2_04_0": [None, [0.6, 1.0], [1.0, 4.0]],
-        "lead_no_sim.gsk3b_04_0": [None, [0.6, 1.0], [1.0, 4.0]],
-
-        "hit.jnk3_04_0": [[0.6, 1.0], [1.0, 5.0], [0.5, 1.0]],
-        "hit.drd2_04_0": [[0.6, 1.0], [1.0, 5.0], [0.5, 1.0]],
-        "hit.gsk3b_04_0": [[0.6, 1.0], [1.0, 5.0], [0.5, 1.0]]
     }[task_name]
