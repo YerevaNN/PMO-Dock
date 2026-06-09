@@ -128,33 +128,29 @@ def prepare_hparam_config(original_config_dict, hparam_config_path):
     
     return config_dicts
 
+def _infer_n_gpus(explicit_n_gpus: int | None) -> int:
+    if explicit_n_gpus is not None:
+        return max(1, int(explicit_n_gpus))
+    cvd = os.environ.get("CUDA_VISIBLE_DEVICES")
+    if not cvd:
+        return 1
+    return max(1, len([p for p in cvd.split(",") if p.strip()]))
+
+
+def _round_robin_device(i: int, n_gpus: int) -> str:
+    return f"cuda:{i % max(1, n_gpus)}"
+
+
 def run_hit(cfg_path):
-    """Run one Saturn job; GPU visibility comes from the scheduler (e.g. SLURM)."""
+    """Run one Saturn job; GPU is set in the generated config."""
     cfg_abs = os.path.abspath(cfg_path)
-    with open(cfg_abs, "r") as f:
-        cfg = yaml.safe_load(f)
-
-    cfg["device"] = "cuda:0"
-    temp_cfg = cfg_abs + ".tmp"
-    with open(temp_cfg, "w") as f:
-        yaml.safe_dump(cfg, f)
-
     repo = os.environ.get("PROJECT_ROOT", project_root)
     saturn_py = os.path.abspath(os.path.join(repo, "saturn", "saturn.py"))
-    saturn_hit_command = [
-        sys.executable,
-        saturn_py,
-        "--config",
-        temp_cfg,
-    ]
-
-    saturn_hit_process = subprocess.Popen(saturn_hit_command, env=os.environ.copy())
+    saturn_hit_process = subprocess.Popen(
+        [sys.executable, saturn_py, "--config", cfg_abs],
+        env=os.environ.copy(),
+    )
     saturn_hit_process.wait()
-    
-    # Cleanup
-    if os.path.exists(temp_cfg):
-        os.remove(temp_cfg)
-    
     return saturn_hit_process.returncode
 
 def run_hits(cfg_paths, max_workers=None):
@@ -254,11 +250,18 @@ if __name__ == "__main__":
         default=None
     )
     parser.add_argument(
+        "--n_gpus",
+        type=int,
+        required=False,
+        default=None,
+        help="Number of GPUs to round-robin over (default: inferred from CUDA_VISIBLE_DEVICES).",
+    )
+    parser.add_argument(
         "--max_workers",
         type=int,
         required=False,
         default=15,
-        help="Maximum number of parallel workers for running hits (default: min(5, num_configs))"
+        help="Maximum number of parallel workers for running hits (default: min(5, num_configs))",
     )
     parser.add_argument(
         "--search_range",
@@ -283,7 +286,13 @@ if __name__ == "__main__":
     )
 
     job_dir = get_job_dir(args.hparam_config is not None, cat=f"saturn-hit")
-    logging.info("GPU selection: environment / SLURM; each subprocess uses cuda:0 in config.")
+    n_gpus = _infer_n_gpus(args.n_gpus)
+    logging.info(
+        "GPU selection: inherited from environment (e.g. SLURM CUDA_VISIBLE_DEVICES). "
+        "device assignment: round_robin (n_gpus=%s, CUDA_VISIBLE_DEVICES=%s)",
+        n_gpus,
+        os.environ.get("CUDA_VISIBLE_DEVICES"),
+    )
 
     root_dir = os.path.join(os.environ["PROJECT_ROOT"], "saturn")
     with open(os.path.join(root_dir, args.config_file), "r") as f:
@@ -298,6 +307,7 @@ if __name__ == "__main__":
 
     if args.search_range is not None:
         config_dicts = config_dicts[args.search_range[0]:args.search_range[1]]
+    device_counter = 0
     for config_dict in config_dicts:
         # create log dirs
         model_name = args.config_file.split("/")[-1].split(".")[0]
@@ -354,7 +364,8 @@ if __name__ == "__main__":
                     # Update reward type if not using hparam config
                     seed_config_dict["oracle"]["components"][0]["name"] = args.reward_type
                 
-                seed_config_dict["device"] = "cuda:0"
+                seed_config_dict["device"] = _round_robin_device(device_counter, n_gpus)
+                device_counter += 1
 
                 cfg_file = os.path.join(oracle_log_dir, f"config-{seed}.yaml")
                 with open(cfg_file, "w") as f:

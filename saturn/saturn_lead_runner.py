@@ -129,35 +129,32 @@ def prepare_hparam_config(original_config_dict, hparam_config_path):
     
     return config_dicts
 
+def _infer_n_gpus(explicit_n_gpus: int | None) -> int:
+    if explicit_n_gpus is not None:
+        return max(1, int(explicit_n_gpus))
+    cvd = os.environ.get("CUDA_VISIBLE_DEVICES")
+    if not cvd:
+        return 1
+    return max(1, len([p for p in cvd.split(",") if p.strip()]))
+
+
+def _round_robin_device(i: int, n_gpus: int) -> str:
+    return f"cuda:{i % max(1, n_gpus)}"
+
+
 def run_lead(cfg_path):
-    """Run one Saturn lead job; GPU visibility from scheduler / environment."""
+    """Run one Saturn lead job; GPU is set in the generated config."""
     cfg_abs = os.path.abspath(cfg_path)
-    with open(cfg_abs, "r") as f:
-        cfg = yaml.safe_load(f)
-
-    cfg["device"] = "cuda:0"
-    temp_cfg = cfg_abs + ".tmp"
-    with open(temp_cfg, "w") as f:
-        yaml.safe_dump(cfg, f)
-
     repo = os.environ.get("PROJECT_ROOT", project_root)
     saturn_py_path = os.path.abspath(os.path.join(repo, "saturn", "saturn.py"))
     saturn_dir = os.path.abspath(os.path.join(repo, "saturn"))
 
-    saturn_command = [
-        sys.executable,
-        saturn_py_path,
-        "--config",
-        temp_cfg,
-    ]
-
-    saturn_process = subprocess.Popen(saturn_command, env=os.environ.copy(), cwd=saturn_dir)
+    saturn_process = subprocess.Popen(
+        [sys.executable, saturn_py_path, "--config", cfg_abs],
+        env=os.environ.copy(),
+        cwd=saturn_dir,
+    )
     saturn_process.wait()
-    
-    # Cleanup
-    if os.path.exists(temp_cfg):
-        os.remove(temp_cfg)
-    
     return saturn_process.returncode
 
 def run_leads(cfg_paths, max_workers=None):
@@ -277,11 +274,18 @@ if __name__ == "__main__":
         default=None
     )
     parser.add_argument(
+        "--n_gpus",
+        type=int,
+        required=False,
+        default=None,
+        help="Number of GPUs to round-robin over (default: inferred from CUDA_VISIBLE_DEVICES).",
+    )
+    parser.add_argument(
         "--max_workers",
         type=int,
         required=False,
         default=15,
-        help="Maximum number of parallel workers for running lead experiments (default: 15)"
+        help="Maximum number of parallel workers for running lead experiments (default: 15)",
     )
     args = parser.parse_args()
 
@@ -293,12 +297,27 @@ if __name__ == "__main__":
     )
 
     job_dir = get_job_dir(args.hparam_config is not None, cat=f"saturn-lead")
-    logging.info("GPU selection: environment / SLURM; each subprocess uses cuda:0 in config.")
+    n_gpus = _infer_n_gpus(args.n_gpus)
+    logging.info(
+        "GPU selection: inherited from environment (e.g. SLURM CUDA_VISIBLE_DEVICES). "
+        "device assignment: round_robin (n_gpus=%s, CUDA_VISIBLE_DEVICES=%s)",
+        n_gpus,
+        os.environ.get("CUDA_VISIBLE_DEVICES"),
+    )
 
-    with open(args.config, "r") as f:
+    saturn_root = os.path.join(os.environ["PROJECT_ROOT"], "saturn")
+    config_path = args.config
+    if not os.path.isabs(config_path):
+        candidate = os.path.join(saturn_root, config_path)
+        if os.path.isfile(candidate):
+            config_path = candidate
+    with open(config_path, "r") as f:
         orig_config_dict = yaml.safe_load(f)
     if args.hparam_config is not None:
-        config_dicts = prepare_hparam_config(orig_config_dict, args.hparam_config)
+        hparam_path = args.hparam_config
+        if not os.path.isabs(hparam_path):
+            hparam_path = os.path.join(saturn_root, hparam_path)
+        config_dicts = prepare_hparam_config(orig_config_dict, hparam_path)
     else:
         config_dicts = [copy.deepcopy(orig_config_dict)]
     
@@ -307,6 +326,7 @@ if __name__ == "__main__":
     )
 
     all_cfg_paths = []
+    device_counter = 0
 
     for config_dict in config_dicts:
         # create log dirs
@@ -397,7 +417,8 @@ if __name__ == "__main__":
                     if args.sigma is not None:
                         seed_config_dict["goal_directed_generation"]["reinforcement_learning"]["sigma"] = args.sigma
                     
-                    seed_config_dict["device"] = "cuda:0"
+                    seed_config_dict["device"] = _round_robin_device(device_counter, n_gpus)
+                    device_counter += 1
 
                     cfg_file = os.path.join(oracle_log_dir, f"config-{seed}.yaml")
                     # Normalize the path to ensure consistency

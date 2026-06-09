@@ -27,8 +27,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from benchmark.docking_oracle.docking import DockingVina, is_antitarget_receptor
 from benchmark.docking_oracle.docking_vina_client import DockingVinaClient
 from benchmark.spec_tasks import is_geam_spec_target, parse_geam_spec_target
-from utils.tasks import task_name2constraints, select_sigma
-from utils.rewards import hit_reward
+from benchmark.tasks import task_name2constraints
+from benchmark.rewards import hit_reward, select_sigma
 
 
 

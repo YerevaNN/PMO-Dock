@@ -25,8 +25,8 @@
     },
     "goal_directed_generation": {
       "reinforcement_learning": {
-        "prior": "/auto/home/gor/projects/Even-More-PMO/saturn/experimental_reproduction/checkpoint_models/zinc-250k-mamba-epoch-50.prior",
-        "agent": "/auto/home/gor/projects/Even-More-PMO/saturn/experimental_reproduction/checkpoint_models/zinc-250k-mamba-epoch-50.prior",
+        "prior": "${SATURN_PRIOR_PATH}",
+        "agent": "${SATURN_PRIOR_PATH}",
         "batch_size": 16,
         "learning_rate": 0.0001,
         "sigma": 64.0,
@@ -66,7 +66,7 @@
     },
     "distribution_learning": {
       "parameters": {
-        "agent": "/auto/home/gor/projects/Even-More-PMO/saturn/experimental_reproduction/checkpoint_models/zinc-250k-mamba-epoch-50.prior",
+        "agent": "${SATURN_PRIOR_PATH}",
         "training_steps": 20,
         "batch_size": 512,
         "learning_rate": 0.0001,

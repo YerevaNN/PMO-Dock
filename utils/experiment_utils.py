@@ -35,7 +35,9 @@ def get_log_dir(
     Standard log layout used across runners.
 
     Logs under:
-      ${OUT_DIR}/results/<method>/<task_type>/<YYYY-MM-DD>/<exp-N>/<model_name><suffix>
+      ${OUT_DIR}/<method>/<task_type>/<YYYY-MM-DD>/<exp-N>/<model_name><suffix>
+
+    ``OUT_DIR`` defaults to ``$PROJECT_ROOT/results`` (see ``.env_vars``).
 
     Callers may pass only ``model_name`` (legacy runners) or explicit ``task_type``.
     """
@@ -44,7 +46,7 @@ def get_log_dir(
         model_name = ""
     out_dir = os.environ.get("OUT_DIR", ".")
     date_str = time.strftime("%Y-%m-%d")
-    base = os.path.join(out_dir, "results", str(method), str(task_type), date_str)
+    base = os.path.join(out_dir, str(method), str(task_type), date_str)
     exp_dir = _next_exp_dir(base, prefix=exp_name)
     tail = f"{model_name}{suffix}".strip()
     return os.path.join(exp_dir, tail) if tail else exp_dir
@@ -55,10 +57,10 @@ def get_job_dir(is_hparam_search: bool, cat: str = "jobs") -> str:
     Directory for submitit / orchestration logs.
 
     Layout:
-      ${OUT_DIR}/results/job_dirs/<cat>/<YYYY-MM-DD>-{hparam}/<hash>
+      ${OUT_DIR}/job_dirs/<cat>/<YYYY-MM-DD>-{hparam}/<hash>
     """
     out_dir = os.environ.get("OUT_DIR", ".")
     date_str = time.strftime("%Y-%m-%d")
     mode = "hparam" if is_hparam_search else ""
-    base = os.path.join(out_dir, "results", "job_dirs", str(cat), f"{date_str}-{mode}")
+    base = os.path.join(out_dir, "job_dirs", str(cat), f"{date_str}-{mode}")
     return os.path.join(base, generate_random_hash(6))

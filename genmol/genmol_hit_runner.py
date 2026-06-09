@@ -35,29 +35,31 @@ def prepare_hparam_config(original_config_dict, hparam_config_path):
     return config_dicts
 
 
-def _device_for_job(job_index: int, devices: list[int]) -> int:
-    return devices[job_index % len(devices)]
+def _genmol_model_path() -> str:
+    return os.environ.get(
+        "GENMOL_MODEL_PATH",
+        os.path.join(
+            os.environ.get("GENMOL_ROOT", os.path.join(os.environ.get("PROJECT_ROOT", project_root), "genmol")),
+            "model.ckpt",
+        ),
+    )
 
 
-def run_hit(cfg_path: str, device: int) -> int:
-    """Run one GenMol hit job; child sees cuda:0 on the chosen device."""
+def run_hit(cfg_path: str) -> int:
+    """Run one GenMol hit job; GPU selection is inherited from the environment."""
     cfg_abs = os.path.abspath(cfg_path)
     repo = os.environ.get("PROJECT_ROOT", project_root)
     hit_run_py = os.path.abspath(os.path.join(repo, "genmol", "scripts", "exps", "hit", "run.py"))
-    env = os.environ.copy()
-    env["CUDA_VISIBLE_DEVICES"] = str(device)
-
-    logging.info("Launching %s on device %s", cfg_abs, device)
     genmol_hit_process = subprocess.Popen(
         [sys.executable, hit_run_py, "--config_file", cfg_abs],
-        env=env,
+        env=os.environ.copy(),
     )
     genmol_hit_process.wait()
     return genmol_hit_process.returncode
 
 
-def run_hits(cfg_paths, devices, max_workers=None):
-    """Run hit jobs in parallel, round-robin across devices."""
+def run_hits(cfg_paths, max_workers=None):
+    """Run hit jobs in parallel."""
     job_start = time.time()
 
     logging.basicConfig(
@@ -69,18 +71,11 @@ def run_hits(cfg_paths, devices, max_workers=None):
     if max_workers is None:
         max_workers = min(len(cfg_paths), 5)
 
-    logging.info(
-        "Starting %s hits with %s parallel workers on devices %s",
-        len(cfg_paths),
-        max_workers,
-        devices,
-    )
+    logging.info("Starting %s hits with %s parallel workers", len(cfg_paths), max_workers)
 
-    def run_single_hit(job_index_cfg):
-        job_index, cfg_path = job_index_cfg
-        device = _device_for_job(job_index, devices)
+    def run_single_hit(cfg_path):
         try:
-            return_code = run_hit(cfg_path, device)
+            return_code = run_hit(cfg_path)
             if return_code == 0:
                 return cfg_path, None
             error_msg = f"Exit code: {return_code}"
@@ -97,7 +92,7 @@ def run_hits(cfg_paths, devices, max_workers=None):
         for i, cfg_path in enumerate(cfg_paths):
             if i > 0:
                 time.sleep(delay)
-            future = executor.submit(run_single_hit, (i, cfg_path))
+            future = executor.submit(run_single_hit, cfg_path)
             future_to_cfg[future] = cfg_path
 
         results = []
@@ -135,14 +130,6 @@ if __name__ == "__main__":
     )
     parser.add_argument("--hparam_config", type=str, required=False, default=None)
     parser.add_argument(
-        "--devices",
-        nargs="+",
-        type=int,
-        required=False,
-        default=None,
-        help="GPU device ids for round-robin assignment (default: 0).",
-    )
-    parser.add_argument(
         "--max_workers",
         type=int,
         required=False,
@@ -157,8 +144,6 @@ if __name__ == "__main__":
     if args.seeds is None:
         raise ValueError("--seeds is required")
 
-    devices = args.devices if args.devices is not None else [0]
-
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(levelname)s - %(message)s",
@@ -166,9 +151,12 @@ if __name__ == "__main__":
     )
 
     get_job_dir(args.hparam_config is not None, cat="genmol-hit")
-    logging.info("GPU assignment: round-robin over devices %s", devices)
+    logging.info(
+        "GPU selection: inherited from environment (CUDA_VISIBLE_DEVICES=%s)",
+        os.environ.get("CUDA_VISIBLE_DEVICES"),
+    )
 
-    root_dir = os.path.join(os.environ["PROJECT_ROOT"], "genmol")
+    root_dir = os.environ.get("GENMOL_ROOT", os.path.join(os.environ["PROJECT_ROOT"], "genmol"))
     with open(os.path.join(root_dir, args.config_file), "r") as f:
         orig_config_dict = yaml.safe_load(f)
     if args.hparam_config is not None:
@@ -201,9 +189,7 @@ if __name__ == "__main__":
                 os.makedirs(seed_log_dir, exist_ok=True)
 
                 seed_config_dict = config_dict.copy()
-                seed_config_dict["model_path"] = os.path.join(
-                    os.environ["PROJECT_ROOT"], "genmol", "model.ckpt"
-                )
+                seed_config_dict["model_path"] = _genmol_model_path()
                 seed_config_dict["seed"] = seed
                 seed_config_dict["oracle_name"] = oracle
                 seed_config_dict["output_dir"] = seed_log_dir
@@ -228,6 +214,6 @@ if __name__ == "__main__":
     total_workers = args.max_workers
     logging.info("Running %s jobs with up to %s parallel workers", len(all_cfg_paths), total_workers)
 
-    n_failed = run_hits(cfg_paths=all_cfg_paths, devices=devices, max_workers=total_workers)
+    n_failed = run_hits(cfg_paths=all_cfg_paths, max_workers=total_workers)
     logging.info("Completed %s jobs", len(all_cfg_paths))
     sys.exit(1 if n_failed else 0)

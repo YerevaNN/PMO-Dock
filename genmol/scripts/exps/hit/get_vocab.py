@@ -8,11 +8,27 @@ from genmol.utils.utils_chem import cut
 from rdkit import Chem, RDLogger
 RDLogger.DisableLog('rdApp.*')
 
+_genmol_root = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
+
+
+def _zinc250k_csv() -> str:
+    return os.environ.get("GENMOL_ZINC250K_CSV", os.path.join(_genmol_root, "data", "zinc250k.csv"))
+
+
+def _hit_vocab_dir() -> str:
+    return os.environ.get(
+        "GENMOL_HIT_VOCAB_DIR",
+        os.path.join(_genmol_root, "scripts", "exps", "hit", "vocab"),
+    )
+
+
 def get_vocab_from_zinc250k(mol_df=None, size=None):
     if mol_df is not None:
         df = mol_df
     else:
-        df = pd.read_csv(f"{os.environ['PROJECT_ROOT']}/GenMol/data/zinc250k.csv")
+        df = pd.read_csv(_zinc250k_csv())
     # construct vocabulary
     frags = []
     for i in trange(len(df)):
@@ -20,7 +36,7 @@ def get_vocab_from_zinc250k(mol_df=None, size=None):
     # Drop duplications
     frags = list(set(frags))
 
-    foldername = f'{os.environ["PROJECT_ROOT"]}/GenMol/scripts/exps/hit/vocab'
+    foldername = _hit_vocab_dir()
     if not os.path.exists(foldername):
         os.mkdir(foldername)
     

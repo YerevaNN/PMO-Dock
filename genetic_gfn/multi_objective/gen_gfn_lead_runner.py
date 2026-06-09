@@ -147,12 +147,12 @@ def _require_exactly_three_seed_mols(target: str, seed_mols: list, source: str):
 def _get_lead_log_dir(*, method: str, model_name: str, suffix: str) -> str:
     """
     Lead-only results directory:
-      $OUT_DIR/results/<method>/<model_name>/<YYYY-MM-DD><suffix>/lead/exp-<N>
+      $OUT_DIR/<method>/<model_name>/<YYYY-MM-DD><suffix>/lead/exp-<N>
     where <N> is the first available index under the lead/ folder.
     """
     out_dir = os.environ["OUT_DIR"]
     formatted_date_time = datetime.now().strftime("%Y-%m-%d")
-    date_dir = os.path.join(out_dir, "results", method, model_name, formatted_date_time) + (suffix or "")
+    date_dir = os.path.join(out_dir, method, model_name, formatted_date_time) + (suffix or "")
     lead_root = os.path.join(date_dir, "lead")
     os.makedirs(lead_root, exist_ok=True)
 

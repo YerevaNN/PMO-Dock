@@ -199,10 +199,10 @@ python saturn/saturn_hit_runner.py \
 ## Result layout
 
 ```
-$OUT_DIR/results/<method>/<task_or_model>/<YYYY-MM-DD>/exp-N/<oracle>/seed-K/
+$OUT_DIR/<method>/<task_or_model>/<YYYY-MM-DD>/exp-N/<oracle>/seed-K/
 ```
 
-Submitit job metadata: `$OUT_DIR/results/job_dirs/<category>/...`
+Submitit job metadata: `$OUT_DIR/job_dirs/<category>/...`
 
 ## Dependencies (high level)
 

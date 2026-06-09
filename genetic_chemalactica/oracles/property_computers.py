@@ -5,6 +5,7 @@ This module remains as a thin compatibility shim.
 """
 
 import json
+import os
 import subprocess
 
 from benchmark.computers.property_computers import *  # noqa: F403
@@ -261,8 +262,9 @@ def predict_binding_score(rdkit_mols, protein, verb=True):
         predictor_script = resolve_from_project_root(
             "genetic_chemalactica", "oracles", "binding_predictors.py"
         )
+        bind_env = os.environ.get("CONDA_ENV_BIND_ORACLES", "bind_oracles")
         cmd = [
-            "conda", "run", "-n", "bind_oracles", "python", 
+            "conda", "run", "-n", bind_env, "python",
             str(predictor_script),
             "--protein", protein
         ] + ["--smiles_lst"] + smiles_list
