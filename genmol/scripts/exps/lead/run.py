@@ -126,10 +126,10 @@ class GenMolOpt():
             )
             df = pd.read_csv(os.path.join(proj_root, "benchmark", "actives.csv"))
             df = df[df['target'] == self.args.oracle_name]
-            self.start_smiles = df['smiles'].iloc[self.args.start_mol_idx - 1]
+            self.start_smiles = df['smiles'].iloc[self.args.start_mol_idx]
             start_mol = Chem.MolFromSmiles(self.start_smiles)
             self.start_fp = AllChem.GetMorganFingerprintAsBitVect(start_mol, 2, 2048)
-            self.start_prop = df['DS'].iloc[self.args.start_mol_idx - 1]
+            self.start_prop = df['DS'].iloc[self.args.start_mol_idx]
             if self.args.pool == 'seed':
                 print(f'Start SMILES:\t{self.start_smiles}')
                 print(f'Start DS:\t{self.start_prop}')
