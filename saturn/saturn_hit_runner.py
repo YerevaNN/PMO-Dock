@@ -13,10 +13,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
-from utils.experiment_utils import (
-    get_job_dir,
-    get_log_dir
-)
+from benchmark.experiment_utils import get_job_dir, get_log_dir
 
 
 def extract_hparam_combinations(hparam_config):
@@ -230,7 +227,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--oracle_url",
         required=False,
-        type=str
+        type=str,
+        help="Optional docking HTTP service URL for parallel runs (default: in-process DockingOracle).",
     )
     parser.add_argument(
         "--max_oracle_calls",

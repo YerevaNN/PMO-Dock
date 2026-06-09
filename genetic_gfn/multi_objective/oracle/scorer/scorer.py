@@ -1,9 +1,9 @@
 """
 Scorer module for genetic_gfn multi-objective optimization.
 
-Docking objectives use one HTTP call per batch via ``DockingOracleClient``.
-Antitarget multi-seed docking (7uyt, 5ut5, 7uyw, 4l00, 5khw) is handled inside
-``benchmark.docking_oracle.docking.DockingOracle.predict`` on the service.
+Docking objectives use ``benchmark.docking_oracle.DockingOracle`` in-process by
+default. Set ``DOCKING_VINA_URL`` or call ``set_docking_service_url()`` to route
+docking through the HTTP service (useful for parallel / hparam runs).
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem, DataStructs
 from tdc import Oracle as TDCOracle
 
-from benchmark.docking_oracle.docking import TARGET_BOX
+from benchmark.docking_oracle.docking import TARGET_BOX, quickvina_predictor
 from benchmark.docking_oracle.docking_vina_client import DockingOracleClient
 
 _DOCKING_HTTP_URL = ""
@@ -109,25 +109,26 @@ def _smiles_list_from_mols(mols):
     return smiles_list
 
 
+def _predict_docking_affinities(target: str, batch_smiles: list[str]) -> list[float]:
+    http_base = _http_docking_base()
+    if http_base:
+        client = DockingOracleClient(http_base, target)
+        return client.predict(batch_smiles, raw_affinities=True)
+    predictor = quickvina_predictor(target)
+    return [float(score) for score in predictor.predict(batch_smiles)]
+
+
 def _score_docking_objective(
     objective_lower: str,
     smiles_list: list,
     return_normalized: bool,
     return_raw_scores: bool,
 ):
-    http_base = _http_docking_base()
-    if not http_base:
-        raise RuntimeError(
-            "Docking objective requested but oracle URL is not configured. "
-            "Pass --oracle_url or set DOCKING_VINA_URL."
-        )
-
     to_score = [(i, sm) for i, sm in enumerate(smiles_list) if sm]
     aff_map = {}
     if to_score:
         batch_smiles = [t[1] for t in to_score]
-        client = DockingOracleClient(http_base, objective_lower)
-        affs = client.predict(batch_smiles, raw_affinities=True)
+        affs = _predict_docking_affinities(objective_lower, batch_smiles)
         if len(affs) != len(batch_smiles):
             raise RuntimeError(
                 f"Oracle length mismatch for {objective_lower}: "

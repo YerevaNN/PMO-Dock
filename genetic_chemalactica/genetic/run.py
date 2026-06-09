@@ -7,7 +7,7 @@ import time
 import logging
 
 # Add parent directory to path for imports.
-# IMPORTANT: insert at the front so `genetic_chemalactica/utils/*` overrides top-level `utils/*`
+# genetic_chemalactica/ on path so `from utils.*` resolves to this package's utils/
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
@@ -118,7 +118,7 @@ class TempScheduler:
 
 
 def props_dict_from_task(full_task_name: str):
-    from utils.tasks import validate_task_name
+    from genetic_chemalactica.utils.tasks import validate_task_name
 
     validate_task_name(full_task_name)
     prop_dict = {

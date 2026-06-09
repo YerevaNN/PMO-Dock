@@ -19,19 +19,15 @@ import math
 import torch
 
 from benchmark.computers.property_computers import dynamic_computer
-from utils.tasks import (
+from genetic_chemalactica.utils.tasks import (
     task_name2computer_names,
     task_name2hit_ranges,
     select_sigma,
     validate_task_name,
     validate_reward_type,
 )
-from utils.rewards import (
-    hit_reward,
-    hit_docking_score_reward,
-    hit_spec_reward,
-    compute_geam_reward,
-)
+from benchmark.rewards import hit_reward, compute_geam_reward
+from genetic_chemalactica.utils.rewards import hit_docking_score_reward, hit_spec_reward
 
 
 def select_oracle(
@@ -41,7 +37,7 @@ def select_oracle(
     max_oracle_calls: int=1000,
     freq_log: int=100,
     vina_url: str | None = None,
-    use_oracles_app: bool = True,
+    use_oracles_app: bool = False,
     bench_timer: Optional[Any] = None,
 ):
     validate_task_name(task_name)

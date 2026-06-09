@@ -61,5 +61,3 @@ notebooks
 *.slurm
 
 results/*
-
-.env_vars_dev

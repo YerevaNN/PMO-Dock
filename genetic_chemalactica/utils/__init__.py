@@ -3,11 +3,8 @@ import random
 import torch
 import numpy as np
 
-from utils.mol import (
-    is_valid_smiles,
-    compute_fingerprint
-)
-from utils.file import load_yamls, load_csv
+from genetic_chemalactica.utils.mol import is_valid_smiles, compute_fingerprint
+from genetic_chemalactica.utils.file import load_csv, load_yamls
 
 
 def set_seed(seed):

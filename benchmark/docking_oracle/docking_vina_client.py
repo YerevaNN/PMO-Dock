@@ -10,8 +10,9 @@ Antitarget receptors (7uyt, 5ut5, 7uyw, 4l00, 5khw): send one request per batch.
 ``DockingOracle.predict()`` which docks each molecule multiple times (default 3 seeds) with
 higher exhaustiveness and aggregates scores internally. Callers must not loop over seeds.
 
-Callers typically resolve the service base URL from the process environment variable ``DOCKING_VINA_URL``
-or pass an explicit URL; see ``benchmark.computers.property_computers.compute_quickvina_docking_score``.
+When ``DOCKING_VINA_URL`` is unset, callers use in-process ``DockingOracle`` instead (see
+``benchmark.computers.property_computers.compute_quickvina_docking_score``). Set the env var or pass
+an explicit URL to route docking through this HTTP client (typical for parallel / hparam runs).
 """
 
 from __future__ import annotations

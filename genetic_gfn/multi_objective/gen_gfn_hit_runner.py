@@ -8,17 +8,14 @@ import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# Add repo root to path for utils imports (utils/experiment_utils.py lives at repo root)
+# Add repo root to path for benchmark imports
 # This file is at: <REPO_ROOT>/GeneticGFN/multi_objective/gen_gfn_hit_runner.py
 repo_root = os.environ.get("PROJECT_ROOT")
 if not repo_root:
     repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, repo_root)
 
-from utils.experiment_utils import (
-    get_job_dir,
-    get_log_dir
-)
+from benchmark.experiment_utils import get_job_dir, get_log_dir
 
 from benchmark.spec_tasks import list_antitarget_receptors
 

@@ -43,7 +43,7 @@ if not repo_root:
     repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, repo_root)
 
-from utils.experiment_utils import get_log_dir  # noqa: E402
+from benchmark.experiment_utils import get_log_dir  # noqa: E402
 
 
 # ------------------------

@@ -10,16 +10,12 @@ import copy
 from glob import glob
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# Repo root first so `utils.experiment_utils` resolves; `utils.tasks` re-exports genetic_chemalactica helpers.
 _gc_root = os.path.dirname(os.path.abspath(__file__))
 repo_root = os.path.dirname(_gc_root)
 sys.path.insert(0, repo_root)
 
-from utils.experiment_utils import (
-    get_job_dir,
-    get_log_dir,
-)
-from utils.tasks import validate_task_name, validate_reward_type
+from benchmark.experiment_utils import get_job_dir, get_log_dir
+from genetic_chemalactica.utils.tasks import validate_task_name, validate_reward_type
 
 
 def to_nested_dict(orig_dict):
@@ -220,7 +216,7 @@ if __name__ == "__main__":
         "--vina_url",
         required=False,
         type=str,
-        help="URL of the docking Vina HTTP service (written to config; run.py exports DOCKING_VINA_URL for workers)",
+        help="Optional docking HTTP service URL for parallel runs (default: in-process DockingOracle)",
     )
     parser.add_argument(
         "--max_oracle_calls",

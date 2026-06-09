@@ -2,7 +2,7 @@
 
 **PMO-Dock** benchmarks **protein-aware molecular optimization** methods that search for small molecules optimized for:
 
-- **Docking** (QuickVina2 via HTTP service or local grids)
+- **Docking** (QuickVina2 in-process by default, optional HTTP service for parallel runs)
 - **Drug-likeness** (QED)
 - **Synthetic accessibility** (SA)
 - **Lead similarity** (Tanimoto to seed actives), for lead tasks
@@ -37,6 +37,7 @@ That installs the **`pmo-dock`** distribution in editable mode. Only the **`benc
 from benchmark.computers import QED, SA, SIMILARITY, select_prop_computer
 from benchmark.docking_oracle import DockingOracle
 from benchmark.paths import get_project_root, resolve_from_project_root
+from benchmark.experiment_utils import get_log_dir, get_job_dir
 ```
 
 - **Computers** live in `benchmark.computers` (see `benchmark/computers/property_computers.py`).
@@ -87,8 +88,7 @@ Bundled data includes, among others, **`benchmark/actives.csv`** for lead-style 
 | Area | Role |
 |------|------|
 | **`benchmark/`** | **Shipped** as the `pmo-dock` library (`import benchmark...`). |
-| **`saturn/`**, **`genetic_chemalactica/`**, **`genmol/`**, **`genetic_gfn/`**, **`utils/`** | Research / experiment code; run from this repo with the **repo root on `PYTHONPATH`** if imports are not under `benchmark`. |
-| **`scripts/`** | Experiment matrix launcher, benchmark oracle startup, and shared configs. |
+| **`saturn/`**, **`genetic_chemalactica/`**, **`genmol/`**, **`genetic_gfn/`** | Research / experiment code; run from this repo with the **repo root on `PYTHONPATH`** if imports are not under `benchmark`. |
 
 **GenMol** in this tree is a separate package: from the repo root, `python -m pip install -e genmol/env` if you need the `genmol` import path.
 
@@ -100,30 +100,34 @@ export PYTHONPATH=/path/to/PMO-Dock
 
 or invoke modules in a way your scheduler already sets up.
 
-### Shared infrastructure (repo root)
+### Shared infrastructure
 
 | Path | Role |
 |------|------|
-| `utils/experiment_utils.py` | `get_log_dir`, `get_job_dir` for all `*_runner.py` |
-| `utils/tasks.py` | Re-exports `benchmark.tasks` + genetic task registries |
-| `utils/rewards.py` | Re-exports benchmark + genetic reward helpers |
-| `utils/docking_vina_client.py` | Shim to `benchmark.docking_oracle.docking_vina_client` |
+| `benchmark/experiment_utils.py` | `get_log_dir`, `get_job_dir` for all `*_runner.py` |
+| `benchmark/tasks.py` | Hit/lead constraint definitions |
 | `benchmark/actives.csv` | Lead seed molecules |
 | `benchmark/actives_loader.py` | Lead seed SMILES from `actives.csv` |
-| `benchmark/docking_oracle/` | Docking client, grids, optional Flask oracle app |
+| `benchmark/docking_oracle/` | Docking client, grids, optional Flask oracle app (`start_oracle.sh`) |
+| `genetic_chemalactica/utils/tasks.py` | Genetic task prompts, computer lists, validation |
 
 ## Environment variables
 
 ```bash
-source .env_vars   # sets PROJECT_ROOT, OUT_DIR, DOCKING_VINA_URL → local benchmark oracle
+source .env_vars   # portable defaults; auto-loads .env_vars_dev when present (gitignored)
 ```
+
+Create **`.env_vars_dev`** locally for machine-specific paths (Saturn prior, ChemLlaMA checkpoints, etc.). It is listed in `.gitignore` and sourced automatically after `.env_vars`.
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `PROJECT_ROOT` | repo root | Code and config resolution |
 | `OUT_DIR` | `$PROJECT_ROOT/results` | Experiment logs |
-| `DOCKING_VINA_URL` | `http://127.0.0.1:5050` | **Benchmark** QuickVina Flask service (5050 avoids conflicts with other services on 5000) |
+| `DOCKING_USE_HTTP_SERVICE` | `0` | Set to `1` to use the shared QuickVina HTTP service (parallel / hparam) |
+| `DOCKING_VINA_URL` | *(unset unless HTTP mode)* | HTTP service URL; auto-set when `DOCKING_USE_HTTP_SERVICE=1` |
+| `ORACLE_HOST` / `ORACLE_PORT` | `127.0.0.1` / `5050` | Bind address when starting the optional HTTP service |
 | `ORACLE_CONDA_ENV` | `mol-grpo` | Conda env to run `benchmark.docking_oracle.oracle_app` |
+| `SATURN_PRIOR_PATH` | *(set in `.env_vars_dev`)* | Saturn Mamba checkpoint path |
 
 ### Conda environments
 
@@ -136,15 +140,22 @@ source .env_vars   # sets PROJECT_ROOT, OUT_DIR, DOCKING_VINA_URL → local benc
 
 The matrix script does not activate environments automatically; use your scheduler or wrap calls with the appropriate `conda activate`.
 
-### Docking service
+### Docking oracle
 
-Start the HTTP oracle from the repo root (implemented under `benchmark/docking_oracle/`):
+**Default (single run):** algorithms import `benchmark.docking_oracle.DockingOracle` in-process. No separate server is required. Grids live under `benchmark/docking_oracle/docking_grids/`.
+
+**Optional HTTP service (parallel / hparam):** when many workers dock at once, a shared Flask service serializes QuickVina calls and avoids cross-process contention:
 
 ```bash
+export DOCKING_USE_HTTP_SERVICE=1
 source .env_vars
-./scripts/start_benchmark_oracle.sh
+./benchmark/docking_oracle/start_oracle.sh
 # health: curl "$DOCKING_VINA_URL/health"
 ```
+
+Pass the URL into runners when needed: `--vina_url` (genetic_chemalactica), `--oracle_url` (genmol, saturn, genetic_gfn). If unset, each process uses local in-process docking.
+
+**genetic_chemalactica** also supports an optional internal property HTTP wrapper (`oracle.use_oracles_app: true` in config, or `ORACLES_APP_DISABLE=1` to force local). Default is in-process (`LocalDynamicOracle`).
 
 ### Asset paths
 
@@ -156,45 +167,33 @@ source .env_vars
 
 ## Running experiments
 
-```bash
-# All tasks × all four algorithms (long-running; needs GPU + Vina service + checkpoints)
-./scripts/run_experiment_matrix.sh all
-
-# One task only
-./scripts/run_experiment_matrix.sh hit
-./scripts/run_experiment_matrix.sh lead
-./scripts/run_experiment_matrix.sh spec
-
-# Subset of algorithms
-./scripts/run_experiment_matrix.sh hit genetic_chemalactica saturn
-```
-
-Tune via env: `SEEDS`, `MAX_ORACLE_CALLS`, `MAX_WORKERS`.
+Use the `*_runner.py` entrypoints under each algorithm directory (see examples below). Tune via runner flags and env: `SEEDS`, `MAX_ORACLE_CALLS`, `MAX_WORKERS`.
 
 ### Per-algorithm examples (single hit target)
 
 ```bash
-# genetic_chemalactica
+# genetic_chemalactica (local docking by default)
 python genetic_chemalactica/genetic_runner.py \
   --config_file genetic_chemalactica/genetic/configs/best.yaml --seeds 0 1 2 \
-  --task_name hit.parp1 --reward_type hit --max_oracle_calls 3000 --vina_url "$DOCKING_VINA_URL"
+  --task_name hit.parp1 --reward_type hit --max_oracle_calls 3000
 
 # genetic_gfn
 python genetic_gfn/multi_objective/gen_gfn_hit_runner.py \
   --config_file genetic_gfn/hparams_best.yaml --seeds 0 1 2 \
-  --targets parp1 --max_oracle_calls 3000 --oracle_url "$DOCKING_VINA_URL"
+  --targets parp1 --max_oracle_calls 3000
 
 # genmol
 python genmol/genmol_hit_runner.py \
   --config_file scripts/exps/hit/configs/genmol_hit.yaml --seeds 0 1 2 \
-  --oracle_name parp1 --max_oracle_calls 3000 --oracle_url "$DOCKING_VINA_URL"
+  --oracle_name parp1 --max_oracle_calls 3000
 
 # saturn
 python saturn/saturn_hit_runner.py \
   --config_file hit/configs/hit.json --seeds 0 1 2 \
-  --oracle_name parp1 --max_oracle_calls 3000 --reward_type geam \
-  --oracle_url "$DOCKING_VINA_URL"
+  --oracle_name parp1 --max_oracle_calls 3000 --reward_type geam
 ```
+
+For parallel hparam sweeps, start the HTTP oracle and append `--vina_url "$DOCKING_VINA_URL"` or `--oracle_url "$DOCKING_VINA_URL"` to the matching runner.
 
 ## Result layout
 
@@ -213,14 +212,13 @@ Submitit job metadata: `$OUT_DIR/job_dirs/<category>/...`
 | genetic_gfn | torch, rdkit, ray, botorch, torch-geometric (see `genetic_gfn/multi_objective/README.md`) |
 | genmol | `bash genmol/env/setup.sh`; checkpoint at `genmol/model.ckpt` |
 | saturn | `bash saturn/setup.sh` |
-| Docking | HTTP service consumed by `DockingVinaClient` |
+| Docking | In-process `DockingOracle`; optional HTTP service via `DockingVinaClient` |
 
 ## Known gaps / manual steps
 
 1. **GenMol checkpoint** — not vendored; place `genmol/model.ckpt` or override `model_path` in generated configs.
-2. **Saturn priors** — JSON configs may reference machine-specific paths; retarget to this checkout.
-3. **Per-algorithm conda envs** — the matrix script does not activate environments; use your scheduler or wrap calls.
-4. **Post-processing** — `utils/export_lead_top1_scores.py` expects optional `utils/genetic_experiment_metrics.py` (plotting utilities in parent **Even-More-PMO** repo).
+2. **Saturn prior** — set `SATURN_PRIOR_PATH` in `.env_vars_dev` (configs use `${SATURN_PRIOR_PATH}`).
+3. **Per-algorithm conda envs** — runners do not activate environments; use your scheduler or wrap calls.
 
 ## Related repos
 

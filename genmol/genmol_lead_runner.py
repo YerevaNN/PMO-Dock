@@ -13,10 +13,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
-from utils.experiment_utils import (
-    get_job_dir,
-    get_log_dir,
-)
+from benchmark.experiment_utils import get_job_dir, get_log_dir
 
 
 def prepare_hparam_config(original_config_dict, hparam_config_path):

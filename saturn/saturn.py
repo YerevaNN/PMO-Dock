@@ -12,7 +12,7 @@ import time
 import traceback
 import yaml
 
-# Path: Saturn first (oracles, goal_directed_generation, ...), then repo root (utils.docking_vina_client, oracles.docking, etc.)
+# Path: saturn/ first (local utils, oracles, ...), then repo root (benchmark, etc.)
 saturn_dir = os.path.dirname(os.path.abspath(__file__))
 repo_root = os.path.dirname(saturn_dir)
 sys.path.insert(0, saturn_dir)

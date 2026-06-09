@@ -3,6 +3,7 @@ import math
 import numpy as np
 
 from benchmark.actives_loader import lead_seed_smiles
+from benchmark.rewards import select_sigma as _bench_select_sigma
 from benchmark.docking_oracle.docking import ANTITARGET_RECEPTORS
 from benchmark.spec_tasks import spec_task_name
 
@@ -98,6 +99,9 @@ jak2_1 = lead_seed_smiles("jak2", 1)
 jak2_2 = lead_seed_smiles("jak2", 2)
 
 def select_sigma(prop_name: str):
+    sigma = _bench_select_sigma(prop_name)
+    if sigma is not None:
+        return sigma
     coef = 0.1
     prop_name2sigma = {
         "QED": coef * 1,
