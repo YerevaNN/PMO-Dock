@@ -31,7 +31,6 @@ tmp/
 notebooks/
 *.ckpt
 
-.env_vars_dev
 .vscode/
 tmp/
 *.prior

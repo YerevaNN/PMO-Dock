@@ -37,7 +37,7 @@ def get_log_dir(
     Logs under:
       ${OUT_DIR}/<method>/<task_type>/<YYYY-MM-DD>/<exp-N>/<model_name><suffix>
 
-    ``OUT_DIR`` defaults to ``$PROJECT_ROOT/results`` (see ``.env_vars``).
+    ``OUT_DIR`` defaults to ``$PROJECT_ROOT/results`` when set in the environment.
 
     Callers may pass only ``model_name`` (legacy runners) or explicit ``task_type``.
     """

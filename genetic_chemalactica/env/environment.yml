@@ -1,4 +1,4 @@
-name: mol-grpo
+name: cheml
 channels:
   - conda-forge
 dependencies:
