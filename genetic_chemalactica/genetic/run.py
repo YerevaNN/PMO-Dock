@@ -43,6 +43,7 @@ from genetic.genetic_utils import Entry, Pool, canonicalize
 
 from logging_ import logger
 
+from utils import set_seed
 from utils.mol import find_valid_mols
 
 
@@ -355,8 +356,13 @@ def search(args):
     # Setup logging
     run_log_path = os.path.join(log_dir, "run.log")
     setup_logging(run_log_path)
-    
-    logger.info(f"Running Genetic")
+
+    seed = OmegaConf.select(args, "seed", default=None)
+    if seed is None:
+        raise ValueError("Config must set `seed` (genetic_runner writes it per run).")
+    seed = int(seed)
+    set_seed(seed)
+    logger.info(f"Running Genetic with seed={seed}")
     timer = BenchmarkTimer(log_dir=log_dir)
 
     checkpoint_path = os.environ.get("HF_LOCAL_MODEL_DIR", "").strip() or str(args.model.checkpoint_path)
@@ -394,6 +400,7 @@ def search(args):
         vina_url=vina_url,
         use_oracles_app=use_oracles_app,
         bench_timer=timer,
+        seed=seed,
     )
     pool = Pool(args.genetic.pool_size)
     

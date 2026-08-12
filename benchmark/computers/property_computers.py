@@ -29,7 +29,7 @@ def SIMILARITY(rdkit_mols, rdkit_mol1, verb: bool = True):
     return compute_similarity(rdkit_mols, rdkit_mol1=rdkit_mol1, verb=verb)
 
 
-def select_prop_computer(computer_name: str, vina_url: str | None = None):
+def select_prop_computer(computer_name: str, vina_url: str | None = None, seed: int = 0):
     name_to_computer = {
         "QED": compute_qed,
         "TPSA": compute_tpsa,
@@ -50,18 +50,20 @@ def select_prop_computer(computer_name: str, vina_url: str | None = None):
         return partial(compute_similarity, rdkit_mol1=mol)
     if base == "DOCKING":
         target = arg
-        return partial(compute_quickvina_docking_score, target=target, vina_url=vina_url)
+        return partial(compute_quickvina_docking_score, target=target, vina_url=vina_url, seed=seed)
 
     raise ValueError(f"Oracle with name {computer_name} does not exist.")
 
 
-def compute_qed_sas_docking(rdkit_mols, target: str, vina_url: str | None = None):
+def compute_qed_sas_docking(rdkit_mols, target: str, vina_url: str | None = None, seed: int = 0):
     computer_names = ["QED", "SAS", f"DOCKING.{target}"]
-    return dynamic_computer(rdkit_mols, computer_names, vina_url=vina_url)
+    return dynamic_computer(rdkit_mols, computer_names, vina_url=vina_url, seed=seed)
 
 
-def geam_docking_oracle(rdkit_mols, target: str, verb: bool = True, vina_url: str | None = None):
-    docking_scores = compute_quickvina_docking_score(rdkit_mols, target, verb=verb, vina_url=vina_url)
+def geam_docking_oracle(rdkit_mols, target: str, verb: bool = True, vina_url: str | None = None, seed: int = 0):
+    docking_scores = compute_quickvina_docking_score(
+        rdkit_mols, target, verb=verb, vina_url=vina_url, seed=seed
+    )
     qed_scores = compute_qed(rdkit_mols, verb=verb)
     sa_scores = compute_sas(rdkit_mols)
     trans_sa_scores = (10 - sa_scores) / 9
@@ -69,7 +71,13 @@ def geam_docking_oracle(rdkit_mols, target: str, verb: bool = True, vina_url: st
     return aggregated_scores, docking_scores, qed_scores, sa_scores
 
 
-def compute_quickvina_docking_score(rdkit_mols, target: str, verb: bool = True, vina_url: str | None = None):
+def compute_quickvina_docking_score(
+    rdkit_mols,
+    target: str,
+    verb: bool = True,
+    vina_url: str | None = None,
+    seed: int = 0,
+):
     valid_indices = []
     valid_mols = []
     for i, rdkit_mol in enumerate(rdkit_mols):
@@ -91,22 +99,28 @@ def compute_quickvina_docking_score(rdkit_mols, target: str, verb: bool = True, 
     )
     if docking_vina_url:
         client = DockingOracleClient(docking_vina_url, target)
-        valid_scores = client.predict(smiles_list)
+        valid_scores = client.predict(smiles_list, seed=seed)
         valid_scores = -np.array(valid_scores)
         valid_scores = np.clip(valid_scores, 0, None)
         scores[valid_indices] = valid_scores
     else:
         predictor = quickvina_predictor(target)
-        valid_scores = -np.array(predictor.predict(smiles_list))
+        valid_scores = -np.array(predictor.predict(smiles_list, seed=seed))
         valid_scores = np.clip(valid_scores, 0, None)
         scores[valid_indices] = valid_scores
     return scores
 
 
-def dynamic_computer(rdkit_mols, computer_names, verb: bool = True, vina_url: str | None = None):
+def dynamic_computer(
+    rdkit_mols,
+    computer_names,
+    verb: bool = True,
+    vina_url: str | None = None,
+    seed: int = 0,
+):
     scores_dict = {}
     for computer_n in computer_names:
-        prop_computer = select_prop_computer(computer_n, vina_url=vina_url)
+        prop_computer = select_prop_computer(computer_n, vina_url=vina_url, seed=seed)
         p_scores = prop_computer(rdkit_mols, verb=verb)
         scores_dict[computer_n] = p_scores
     return scores_dict

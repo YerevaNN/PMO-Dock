@@ -86,6 +86,7 @@ class GEAMOracle(OracleComponent):
             target = parameters.specific_parameters["target"]
         self.target = target if isinstance(target, str) else target[0] if isinstance(target, list) and len(target) > 0 else str(target)
         logging.debug("GEAMOracle target=%s antitarget=%s", self.target, self.antitarget)
+        self.vina_seed = int(parameters.vina_seed)
         # Check if docking Vina service URL is configured (from specific_parameters or DOCKING_VINA_URL)
         oracle_service_url = parameters.specific_parameters.get("oracle_url")
         if oracle_service_url is None:
@@ -132,13 +133,15 @@ class GEAMOracle(OracleComponent):
             raw_ds = reward_pmo(smiles, self.target)
             ds_rewards = raw_ds
         else:
-            raw_ds, ds_rewards = reward_vina(smiles, self.vina_oracle)
+            raw_ds, ds_rewards = reward_vina(smiles, self.vina_oracle, seed=self.vina_seed)
 
         qed_rewards = reward_qed(mols)
         raw_sa, sa_rewards = reward_sa(mols)
 
         if self.antitarget and is_antitarget_receptor(self.antitarget):
-            raw_ds_antitarget, ds_rewards_antitarget = reward_vina(smiles, self.vina_oracle_antitarget)
+            raw_ds_antitarget, ds_rewards_antitarget = reward_vina(
+                smiles, self.vina_oracle_antitarget, seed=self.vina_seed
+            )
             ds_rewards_antitarget = (np.clip(ds_rewards_antitarget, 0, 20) / 20)
             ds_target_values = (np.clip(ds_rewards, 0, 20) / 20)
             specificity_reward = np.clip(ds_target_values - ds_rewards_antitarget, 0, 1)
@@ -178,6 +181,7 @@ class HITOracle(OracleComponent):
         else:
             target = parameters.specific_parameters["target"]
         self.target = target if isinstance(target, str) else target[0] if isinstance(target, list) and len(target) > 0 else str(target)
+        self.vina_seed = int(parameters.vina_seed)
         # Check if docking Vina service URL is configured (from specific_parameters or DOCKING_VINA_URL)
         oracle_service_url = parameters.specific_parameters.get("oracle_url")
         if oracle_service_url is None:
@@ -248,13 +252,15 @@ class HITOracle(OracleComponent):
             raw_ds = reward_pmo(smiles, self.target)
             ds_values = raw_ds.copy()
         else:
-            raw_ds, _ = reward_vina(smiles, self.vina_oracle)
+            raw_ds, _ = reward_vina(smiles, self.vina_oracle, seed=self.vina_seed)
             ds_values = raw_ds.copy()
             ds_values[raw_ds == -99.9] = 99.9
 
         ds_values_antitarget = None
         if self.antitarget is not None:
-            raw_ds_antitarget, _ = reward_vina(smiles, self.vina_oracle_antitarget)
+            raw_ds_antitarget, _ = reward_vina(
+                smiles, self.vina_oracle_antitarget, seed=self.vina_seed
+            )
             ds_values_antitarget = raw_ds_antitarget.copy()
             ds_values_antitarget[raw_ds_antitarget == -99.9] = 99.9
 

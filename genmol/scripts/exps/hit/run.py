@@ -15,6 +15,7 @@ import random
 import argparse
 import pandas as pd
 import numpy as np
+import torch
 from rdkit import Chem
 from rdkit.Chem import DataStructs, AllChem, QED, RDConfig
 from omegaconf import OmegaConf
@@ -96,6 +97,12 @@ class GenMolOpt():
     def __init__(self, args):
         super().__init__()
         self.args = args
+        seed = int(self.args.seed)
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)
 
         spec = parse_geam_spec_target(self.args.oracle_name)
         if spec is not None:
@@ -119,7 +126,7 @@ class GenMolOpt():
             self.oracle = Oracle(self.args.oracle_name)
         else:
             # Check if oracle service URL is configured (from env var or config)
-            oracle_service_url = os.environ.get("DOCKING_VINA_URL")
+            oracle_service_url = os.environ.get('ORACLE_SERVICE_URL')
             if oracle_service_url is None:
                 oracle_service_url = self.args.get('oracle_url')
             if oracle_service_url:
@@ -139,7 +146,7 @@ class GenMolOpt():
     def reward_vina(self, smiles_list):
         """Calculate Vina reward (negative docking score, clipped to >= 0)"""
         t0 = perf_counter()
-        scores = self.target_oracle.predict(smiles_list)
+        scores = self.target_oracle.predict(smiles_list, seed=int(self.args.seed))
         elapsed = perf_counter() - t0
         n = len(smiles_list)
         per_mol = (elapsed / n) if n else 0
@@ -153,7 +160,7 @@ class GenMolOpt():
 
     def antitarget_reward(self, smiles_list):
         t0 = perf_counter()
-        scores = self.antitarget_oracle.predict(smiles_list)
+        scores = self.antitarget_oracle.predict(smiles_list, seed=int(self.args.seed))
         elapsed = perf_counter() - t0
         n = len(smiles_list)
         per_mol = (elapsed / n) if n else 0

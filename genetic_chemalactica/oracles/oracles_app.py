@@ -25,7 +25,10 @@ def send_geam():
     rdkit_mols = [Chem.MolFromSmiles(s) for s in data["mols"]]
     target = data["target"]
     vina_url = data.get('vina_url')  # Extract vina_url from request if provided
-    scores, docking_scores, qed_scores, sa_scores = geam_docking_oracle(rdkit_mols, target, vina_url=vina_url)
+    seed = int(data.get('seed', 0))
+    scores, docking_scores, qed_scores, sa_scores = geam_docking_oracle(
+        rdkit_mols, target, vina_url=vina_url, seed=seed
+    )
     return jsonify({
         "scores": scores.tolist(),
         "docking_scores": docking_scores.tolist(),
@@ -43,9 +46,10 @@ def send_sas_qed_docking():
     target = data["target"]
     smiles = data["mols"]
     vina_url = data.get('vina_url')  # Extract vina_url from request if provided
+    seed = int(data.get('seed', 0))
 
     rdkit_mols = np.vectorize(Chem.MolFromSmiles)(smiles)
-    scores_dict = compute_qed_sas_docking(rdkit_mols, target, vina_url=vina_url)
+    scores_dict = compute_qed_sas_docking(rdkit_mols, target, vina_url=vina_url, seed=seed)
 
     scores_dict = {k: v.tolist() for k, v in scores_dict.items()}
     return jsonify(scores_dict), 200
@@ -60,8 +64,9 @@ def send_dynamic():
     computer_names = data['computer_names']
     smiles = data['mols']
     vina_url = data.get('vina_url')  # Extract vina_url from request if provided
+    seed = int(data.get('seed', 0))
     rdkit_mols = np.vectorize(Chem.MolFromSmiles)(smiles)
-    scores_dict = dynamic_computer(rdkit_mols, computer_names, vina_url=vina_url)
+    scores_dict = dynamic_computer(rdkit_mols, computer_names, vina_url=vina_url, seed=seed)
 
     scores_dict = {k: v.tolist() for k, v in scores_dict.items()}
     return jsonify(scores_dict), 200
@@ -77,10 +82,11 @@ def send_dynamic_max():
     smiles = data['mols']
     num_eval = data["num_eval"]
     vina_url = data.get('vina_url')  # Extract vina_url from request if provided
+    seed = int(data.get('seed', 0))
     rdkit_mols = np.vectorize(Chem.MolFromSmiles)(smiles)
     scores_dict_list = []
     for _ in range(num_eval):
-        scores_dict_list.append(dynamic_computer(rdkit_mols, computer_names, vina_url=vina_url))
+        scores_dict_list.append(dynamic_computer(rdkit_mols, computer_names, vina_url=vina_url, seed=seed))
 
     scores_dict = {}
     for key in computer_names:

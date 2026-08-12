@@ -86,7 +86,7 @@ def predict(target):
         if not isinstance(smiles_list, list):
             return jsonify({"error": '"smiles" must be a list'}), 400
 
-        seed = data.get("seed", 42)
+        seed = data.get("seed", 0)
         oracle = oracles[target]
         print(f"[oracle_app] Received batch for target {target}: {len(smiles_list)} molecules, seed={seed}")
         scores = oracle.predict(smiles_list, seed)

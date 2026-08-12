@@ -13,7 +13,7 @@ from benchmark.docking_oracle.docking_vina_client import DockingOracleClient
 from benchmark.paths import resolve_from_project_root
 
 
-def select_prop_computer(computer_name, vina_url=None):
+def select_prop_computer(computer_name, vina_url=None, seed=0):
     name_to_computer = {
         "QED": compute_qed,
         "TPSA": compute_tpsa,
@@ -39,7 +39,7 @@ def select_prop_computer(computer_name, vina_url=None):
         return partial(compute_similarity, rdkit_mol1=mol)
     elif computer_name == "DOCKING":
         target = arg
-        return partial(compute_quickvina_docking_score, target=target, vina_url=vina_url)
+        return partial(compute_quickvina_docking_score, target=target, vina_url=vina_url, seed=seed)
     
     raise ValueError(f"Oracle with name {computer_name} does not exist.")
 
@@ -48,13 +48,15 @@ def rel_err(measured, real):
     return np.abs(measured - real) / real
 
 
-def compute_qed_sas_docking(rdkit_mols, target: str, vina_url=None):
+def compute_qed_sas_docking(rdkit_mols, target: str, vina_url=None, seed=0):
     computer_names = ["QED", "SAS", f"DOCKING.{target}"]
-    return dynamic_computer(rdkit_mols, computer_names, vina_url=vina_url)
+    return dynamic_computer(rdkit_mols, computer_names, vina_url=vina_url, seed=seed)
 
 
-def geam_docking_oracle(rdkit_mols, target: str, verb: bool=True, vina_url=None):
-    docking_scores = compute_quickvina_docking_score(rdkit_mols, target, verb=verb, vina_url=vina_url)
+def geam_docking_oracle(rdkit_mols, target: str, verb: bool=True, vina_url=None, seed=0):
+    docking_scores = compute_quickvina_docking_score(
+        rdkit_mols, target, verb=verb, vina_url=vina_url, seed=seed
+    )
     qed_scores = compute_qed(rdkit_mols, verb=verb)
     sa_scores = compute_sas(rdkit_mols)
 
@@ -68,7 +70,7 @@ def geam_docking_oracle(rdkit_mols, target: str, verb: bool=True, vina_url=None)
 #     smiles_list = [Chem.MolToSmiles(rdkit_mol) for rdkit_mol in rdkit_mols]
 #     scores = -np.array(predictor.predict(smiles_list))
 #     return np.clip(scores, 0, None)
-def compute_quickvina_docking_score(rdkit_mols, target: str, verb=True, vina_url=None):
+def compute_quickvina_docking_score(rdkit_mols, target: str, verb=True, vina_url=None, seed=0):
     """
     Compute docking scores using either DockingVina service or local quickvina predictor.
     Skips invalid molecules (None) to save oracle budget.
@@ -78,6 +80,7 @@ def compute_quickvina_docking_score(rdkit_mols, target: str, verb=True, vina_url
         target: Target protein name (e.g., 'parp1', 'fa7', '5ht1b', 'braf', 'jak2')
         verb: Verbose flag (default: True)
         vina_url: Optional docking service URL (takes precedence over env DOCKING_VINA_URL)
+        seed: Docking RNG seed (experiment seed)
     
     Returns:
         Array of docking scores (clipped to >= 0). Invalid molecules get score 0.0.
@@ -109,24 +112,24 @@ def compute_quickvina_docking_score(rdkit_mols, target: str, verb=True, vina_url
     if docking_vina_url:
         # Use docking HTTP service (same client as benchmark) for valid molecules only
         client = DockingOracleClient(docking_vina_url, target)
-        valid_scores = client.predict(smiles_list)
+        valid_scores = client.predict(smiles_list, seed=seed)
         valid_scores = -np.array(valid_scores)  # Negative affinity to positive score
         valid_scores = np.clip(valid_scores, 0, None)
         scores[valid_indices] = valid_scores
     else:
         # Use local quickvina predictor (original behavior, same as benchmark)
         predictor = quickvina_predictor(target)
-        valid_scores = -np.array(predictor.predict(smiles_list))
+        valid_scores = -np.array(predictor.predict(smiles_list, seed=seed))
         valid_scores = np.clip(valid_scores, 0, None)
         scores[valid_indices] = valid_scores
     
     return scores
 
 
-def dynamic_computer(rdkit_mols, computer_names, verb=True, vina_url=None):
+def dynamic_computer(rdkit_mols, computer_names, verb=True, vina_url=None, seed=0):
     scores_dict = {}
     for computer_n in computer_names:
-        prop_computer = select_prop_computer(computer_n, vina_url=vina_url)
+        prop_computer = select_prop_computer(computer_n, vina_url=vina_url, seed=seed)
         p_scores = prop_computer(rdkit_mols, verb=verb)
         scores_dict[computer_n] = p_scores
     return scores_dict

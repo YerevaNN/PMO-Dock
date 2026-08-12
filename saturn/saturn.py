@@ -99,6 +99,11 @@ def main():
     model_architecture = config["model_architecture"]
     set_seed_everywhere(seed, device)
 
+    # Align docking component seeds with the experiment seed.
+    for comp in config.get("oracle", {}).get("components", []):
+        if isinstance(comp, dict):
+            comp["vina_seed"] = seed
+
     log.info("mode=%s device=%s seed=%s model=%s", running_mode, device, seed, model_architecture)
 
     if running_mode == "distribution_learning":

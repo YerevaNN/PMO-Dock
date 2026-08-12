@@ -57,7 +57,7 @@ def set_seed_everywhere(seed: int, device: str):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
-    if device == "cuda":
+    if isinstance(device, str) and device.startswith("cuda") and torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
 
     torch.backends.cudnn.deterministic = True

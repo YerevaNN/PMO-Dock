@@ -30,6 +30,7 @@ import random
 import argparse
 import pandas as pd
 import numpy as np
+import torch
 from rdkit import Chem
 from rdkit.Chem import DataStructs, AllChem, QED, RDConfig
 from omegaconf import OmegaConf
@@ -109,6 +110,12 @@ class GenMolOpt():
     def __init__(self, args):
         super().__init__()
         self.args = args
+        seed = int(self.args.seed)
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)
         # df = pd.read_csv('scripts/exps/lead/docking/actives.csv')
         # Get the directory where the current script is located
         script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -138,7 +145,7 @@ class GenMolOpt():
         if self.args.get('oracle_url') is not None:
             oracle_service_url = self.args.get('oracle_url')
         else:
-            oracle_service_url = os.environ.get("DOCKING_VINA_URL")
+            oracle_service_url = os.environ.get('ORACLE_SERVICE_URL')
         if oracle_service_url:
             self.predictor = DockingVinaClient(oracle_service_url, self.args.oracle_name)
         else:
@@ -153,7 +160,7 @@ class GenMolOpt():
         print(f'\033[92m{self.fname}\033[0m')
 
     def reward_vina(self, smiles_list):
-        reward = - np.array(self.predictor.predict(smiles_list))
+        reward = - np.array(self.predictor.predict(smiles_list, seed=int(self.args.seed)))
         reward = np.clip(reward, 0, None)
         return list(reward)
     

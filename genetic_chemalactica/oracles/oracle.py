@@ -39,6 +39,7 @@ def select_oracle(
     vina_url: str | None = None,
     use_oracles_app: bool = False,
     bench_timer: Optional[Any] = None,
+    seed: int = 0,
 ):
     validate_task_name(task_name)
     reward_type = validate_reward_type(task_name, reward_type)
@@ -93,6 +94,7 @@ def select_oracle(
         score_computer=score_computer,
         vina_url=vina_url,
         bench_timer=bench_timer,
+        seed=seed,
     )
 
 
@@ -109,6 +111,7 @@ class DynamicOracle:
         additional_args: dict={},
         vina_url: str | None = None,
         bench_timer: Optional[Any] = None,
+        seed: int = 0,
     ):
         self.computer_names = computer_names
         self.log_file_path = log_file_path
@@ -118,8 +121,10 @@ class DynamicOracle:
         self.freq_log = freq_log
         self.additional_args = additional_args
         self._bench_timer = bench_timer
+        self.seed = int(seed)
         if vina_url is not None:
             self.additional_args["vina_url"] = vina_url
+        self.additional_args["seed"] = self.seed
         self.mol_buffer: Dict = {}
         self.out_file = open(self.log_file_path, "w")
         self.sep = ";"
@@ -232,6 +237,7 @@ class LocalDynamicOracle(DynamicOracle):
                     rdkit_mols,
                     self.computer_names,
                     vina_url=self.additional_args.get("vina_url"),
+                    seed=self.additional_args.get("seed", self.seed),
                 )
                 for i, mol in enumerate(new_mols):
                     self.mol_buffer[mol] = {prop_name: values[i] for prop_name, values in scores_dict.items()}
