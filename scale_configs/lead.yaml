@@ -1,0 +1,56 @@
+# MolScaling PMO-Dock scaling — lead family.
+# --model and --task(s) stay on the CLI; this file holds the rest.
+# Random seeds 1–5 are experiment RNG. Trailing _0/_1/_2 in task names are
+# seed ligands from benchmark/actives.csv (3 per protein), not those RNG seeds.
+seeds: [1, 2, 3, 4, 5]
+max_oracle_calls: 10000
+
+generation:
+  max_new_tokens: 500
+  temperature: 1.0
+  repetition_penalty: 1.01
+  do_sample: true
+  dtype: fp32
+  device: cuda
+  attn_implementation: sdpa
+
+genetic:
+  pool_size: 20
+  num_prompts: 50
+  num_similars: 2
+  representation: smiles
+  sim_vals: [0.6, 0.9]
+
+model:
+  mol_tags: ["[SMILES]", "[/SMILES]"]
+  pad_token: <|finetune_right_pad_id|>
+  sim_tags: ["[SIMILAR]", "[/SIMILAR]"]
+
+io:
+  results_dir: results
+
+# Short names used as --model. `--model all` expands to every key here.
+models:
+  chemllama-170m: yerevann/ChemLlama-170M
+  chemllama-380m: yerevann/ChemLlama-380M
+  chemllama-1b: yerevann/ChemLlama-1B
+  chemllama-3b: yerevann/ChemLlama-3B
+
+# Task name -> properties scored each oracle call. `--tasks all` expands to every key.
+# lead.<protein>_06_<ligand>: similarity 0.6, ligand 0–2.
+tasks:
+  lead.parp1_06_0: [similarity, qed, sas, docking]
+  lead.parp1_06_1: [similarity, qed, sas, docking]
+  lead.parp1_06_2: [similarity, qed, sas, docking]
+  lead.fa7_06_0: [similarity, qed, sas, docking]
+  lead.fa7_06_1: [similarity, qed, sas, docking]
+  lead.fa7_06_2: [similarity, qed, sas, docking]
+  lead.5ht1b_06_0: [similarity, qed, sas, docking]
+  lead.5ht1b_06_1: [similarity, qed, sas, docking]
+  lead.5ht1b_06_2: [similarity, qed, sas, docking]
+  lead.braf_06_0: [similarity, qed, sas, docking]
+  lead.braf_06_1: [similarity, qed, sas, docking]
+  lead.braf_06_2: [similarity, qed, sas, docking]
+  lead.jak2_06_0: [similarity, qed, sas, docking]
+  lead.jak2_06_1: [similarity, qed, sas, docking]
+  lead.jak2_06_2: [similarity, qed, sas, docking]

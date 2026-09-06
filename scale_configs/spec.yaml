@@ -1,0 +1,42 @@
+# MolScaling PMO-Dock scaling — specificity (spec) family.
+# --model and --task(s) stay on the CLI; this file holds the rest.
+seeds: [1, 2, 3, 4, 5]
+max_oracle_calls: 10000
+
+generation:
+  max_new_tokens: 500
+  temperature: 1.0
+  repetition_penalty: 1.01
+  do_sample: true
+  dtype: fp32
+  device: cuda
+  attn_implementation: sdpa
+
+genetic:
+  pool_size: 20
+  num_prompts: 50
+  num_similars: 2
+  representation: smiles
+  sim_vals: [0.6, 0.9]
+
+model:
+  mol_tags: ["[SMILES]", "[/SMILES]"]
+  pad_token: <|finetune_right_pad_id|>
+  sim_tags: ["[SIMILAR]", "[/SIMILAR]"]
+
+io:
+  results_dir: results
+
+# Short names used as --model. `--model all` expands to every key here.
+models:
+  chemllama-170m: yerevann/ChemLlama-170M
+  chemllama-380m: yerevann/ChemLlama-380M
+  chemllama-1b: yerevann/ChemLlama-1B
+  chemllama-3b: yerevann/ChemLlama-3B
+
+# Task name -> properties scored each oracle call. `--tasks all` expands to every key.
+# spec.6nzp_<antitarget>: bind 6nzp, stay weak on the antitarget.
+tasks:
+  spec.6nzp_4l00: [qed, sas, docking, antitarget_docking]
+  spec.6nzp_5khw: [qed, sas, docking, antitarget_docking]
+  spec.6nzp_5ut5: [qed, sas, docking, antitarget_docking]

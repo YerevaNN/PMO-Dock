@@ -1,0 +1,44 @@
+# MolScaling PMO-Dock scaling — hit family.
+# --model and --task(s) stay on the CLI; this file holds the rest.
+seeds: [1, 2, 3, 4, 5]
+max_oracle_calls: 10000
+reward_type: hit
+
+generation:
+  max_new_tokens: 500
+  temperature: 1.0
+  repetition_penalty: 1.01
+  do_sample: true
+  dtype: fp32
+  device: cuda
+  attn_implementation: sdpa
+
+genetic:
+  pool_size: 20
+  num_prompts: 50
+  num_similars: 2
+  representation: smiles
+  sim_vals: [0.6, 0.9]
+
+model:
+  mol_tags: ["[SMILES]", "[/SMILES]"]
+  pad_token: <|finetune_right_pad_id|>
+  sim_tags: ["[SIMILAR]", "[/SIMILAR]"]
+
+io:
+  results_dir: results
+
+# Short names used as --model. `--model all` expands to every key here.
+models:
+  chemllama-170m: yerevann/ChemLlama-170M
+  chemllama-380m: yerevann/ChemLlama-380M
+  chemllama-1b: yerevann/ChemLlama-1B
+  chemllama-3b: yerevann/ChemLlama-3B
+
+# Task name -> properties scored each oracle call. `--tasks all` expands to every key.
+tasks:
+  hit.parp1: [qed, sas, docking]
+  hit.fa7: [qed, sas, docking]
+  hit.5ht1b: [qed, sas, docking]
+  hit.braf: [qed, sas, docking]
+  hit.jak2: [qed, sas, docking]

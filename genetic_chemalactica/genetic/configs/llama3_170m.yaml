@@ -1,6 +1,6 @@
 model:  
-  checkpoint_path: "yerevann/chemllama-170m"
-  tokenizer_path: "yerevann/chemllama-170m"
+  checkpoint_path: "yerevann/ChemLlama-170M"
+  tokenizer_path: "yerevann/ChemLlama-170M"
   mol_tags: ["[SMILES]", "[/SMILES]"]
   pad_token: <|finetune_right_pad_id|>
   sim_tags: ["[SIMILAR]", "[/SIMILAR]"]
