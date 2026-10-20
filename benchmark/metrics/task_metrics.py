@@ -72,6 +72,9 @@ def metric_spec_margin_topk_mean(
 ) -> float:
     """
     Specificity metric: mean of top-k margins (docking - antitarget_docking).
+
+    Paper / leaderboard reporting uses k=10 (mean top-10 margin) with oracle
+    budget B=3000. Do not change the default without updating README + paper.
     """
     _require_cols(df, [docking_col, antitarget_col])
     if df.empty:

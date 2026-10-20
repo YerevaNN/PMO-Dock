@@ -1,0 +1,30 @@
+# ChemLlama category-best hyperparameters for HIT generation (test leaderboard).
+# Selected as validation hit-category best (sweep exp-6): P=10, I=50, S=3.
+model:
+  checkpoint_path: ""
+  tokenizer_path: ""
+  mol_tags: ["[SMILES]", "[/SMILES]"]
+  pad_token: <|finetune_right_pad_id|>
+  sim_tags: ["[SIMILAR]", "[/SIMILAR]"]
+  device: cuda
+  dtype: fp32 # bf16 / fp32
+
+generation:
+  max_new_tokens: 500
+  temperature: 1.0
+  do_sample: true
+  repetition_penalty: 1.01
+  num_return_sequences: 1
+
+genetic:
+  pool_size: 10
+  num_prompts: 50
+  num_similars: 3
+  representation: "smiles"
+  sim_vals: [0.6, 0.9]
+
+oracle:
+  task_name: ""
+  max_calls: 3000
+  log_dir: ""
+  reward_type: "hit"

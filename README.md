@@ -90,7 +90,7 @@ For a single experiment, inline docking is usually enough. Use the HTTP service 
 |------|---------------------|---------------|-------|-----------|
 | **hit** | QED, SA, docking on **parp1, fa7, 5ht1b, braf, jak2** | 3000 | 0–9 | **Hit rate** — share of oracle calls that yield molecules meeting all property cutoffs |
 | **lead** | Similarity to seed, QED, SA; same 5 proteins; 3 seeds/protein (`benchmark/actives.csv`); sim **0.4** / **0.6** | 1000 | 0–2 | **Best docking score** among molecules that satisfy lead constraints (`lead.<protein>_04_0` … `_06_2`) |
-| **spec** | Docking on **6nzp** + antitarget (**7uyt, 5ut5, 7uyw, 4l00, 5khw**), QED, SA | 3000 | 0–2 | **Mean top-5 margin** — average of the five largest (target docking − antitarget docking) gaps (`spec.6nzp_7uyt`, …) |
+| **spec** | Docking on **6nzp** + antitarget (**7uyt, 5ut5, 7uyw, 4l00, 5khw**), QED, SA | 3000 | 0–2 | **Mean top-10 margin** — average of the ten largest (target docking − antitarget docking) gaps among constraint-passing molecules (`spec.6nzp_7uyt`, …); see `benchmark/metrics/task_metrics.py` (`k=10`) |
 
 Constraint details: `benchmark/tasks.py`, `benchmark/spec_tasks.py`. Metrics: `benchmark/metrics/task_metrics.py`.
 
@@ -111,10 +111,12 @@ Single run (hit, genetic_chemalactica):
 export PROJECT_ROOT=$PWD PYTHONPATH=$PWD
 conda activate cheml
 python genetic_chemalactica/genetic_runner.py \
-  --config_file genetic_chemalactica/genetic/configs/best.yaml \
+  --config_file genetic_chemalactica/genetic/configs/best_hit.yaml \
   --task_name hit.parp1 --reward_type hit \
   --seeds 0 1 2 3 4 5 6 7 8 9 --max_oracle_calls 3000
 ```
+
+Category-best ChemLlama configs: `best_hit.yaml` / `best_lead.yaml` / `best_spec.yaml` (use the matching budget: hit/spec **3000**, lead **1000**).
 
 Hparam sweep (spec, Saturn) — start the docking service first, then launch parallel jobs over a grid defined in `saturn/spec/hparams.yaml` (`sigma`, memory on/off, reward type, …):
 
@@ -128,7 +130,7 @@ export PROJECT_ROOT=$PWD PYTHONPATH=$PWD OUT_DIR=$PWD/results
 export SATURN_PRIOR_PATH=$PROJECT_ROOT/saturn/experimental_reproduction/checkpoint_models/zinc-250k-mamba-epoch-50.prior
 conda activate saturn
 CUDA_VISIBLE_DEVICES=0,1 python saturn/saturn_hit_runner.py \
-  --config_file spec/spec_best.json \
+  --config_file saturn/spec/spec_best.json \
   --oracle_name 6nzp_7uyt \
   --seeds 0 1 2 \
   --max_oracle_calls 3000 \

@@ -1,3 +1,9 @@
+# DEPRECATED as a single catch-all config.
+# Category-specific test-leaderboard configs:
+#   best_hit.yaml   (hit generation)
+#   best_lead.yaml  (lead optimization)
+#   best_spec.yaml  (specificity)
+# This file mirrors best_hit.yaml so bare --config best.yaml reproduces hit test settings.
 model:
   checkpoint_path: ""
   tokenizer_path: ""
@@ -15,14 +21,14 @@ generation:
   num_return_sequences: 1
 
 genetic:
-  pool_size: 20
+  pool_size: 10
   num_prompts: 50
-  num_similars: 2
+  num_similars: 3
   representation: "smiles"
   sim_vals: [0.6, 0.9]
 
 oracle:
   task_name: ""
-  max_calls: 
+  max_calls: 3000
   log_dir: ""
-  reward_type: ""
+  reward_type: "hit"

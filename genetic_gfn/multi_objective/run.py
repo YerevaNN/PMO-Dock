@@ -67,7 +67,9 @@ def main():
     parser.add_argument('--n_jobs', type=int, default=-1)
     parser.add_argument('--output_dir', type=str, default=None)
     parser.add_argument('--patience', type=int, default=5)
-    parser.add_argument('--max_oracle_calls', type=int, default=1000)
+    # PMO-Dock budgets: hit/spec=3000, lead=1000. Default matches hit/spec;
+    # lead runners should pass --max_oracle_calls 1000 explicitly.
+    parser.add_argument('--max_oracle_calls', type=int, default=3000)
     parser.add_argument('--freq_log', type=int, default=100)
     parser.add_argument('--n_runs', type=int, default=5)
     # parser.add_argument('--seed', type=int, default=0)
