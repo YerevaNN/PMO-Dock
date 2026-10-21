@@ -1,8 +1,8 @@
 # ChemLlama category-best hyperparameters for LEAD optimization (test leaderboard).
 # Selected as validation lead-category best (sweep exp-3): P=10, I=25, S=4.
 model:
-  checkpoint_path: ""
-  tokenizer_path: ""
+  checkpoint_path: "yerevann/ChemLlama-1B-40k-steps"
+  tokenizer_path: "yerevann/ChemLlama-1B-40k-steps"
   mol_tags: ["[SMILES]", "[/SMILES]"]
   pad_token: <|finetune_right_pad_id|>
   sim_tags: ["[SIMILAR]", "[/SIMILAR]"]

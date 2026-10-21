@@ -7,13 +7,13 @@ import itertools
 import logging
 import time
 import copy
-import pandas as pd
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Add project root to path for utils imports
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
+from benchmark.actives_loader import lead_seed_smiles
 from benchmark.experiment_utils import get_job_dir, get_log_dir
 
 
@@ -318,10 +318,6 @@ if __name__ == "__main__":
     else:
         config_dicts = [copy.deepcopy(orig_config_dict)]
     
-    lead_smiles_df = pd.read_csv(
-        os.path.join(os.environ["PROJECT_ROOT"], "benchmark", "actives.csv")
-    )
-
     all_cfg_paths = []
     device_counter = 0
 
@@ -341,7 +337,7 @@ if __name__ == "__main__":
             os.makedirs(start_idx_dir, exist_ok=True)
 
             for oracle_name in args.oracle_names:
-                start_smiles = lead_smiles_df[lead_smiles_df["target"] == oracle_name]['smiles'].iloc[start_mol_idx]
+                start_smiles = lead_seed_smiles(oracle_name, start_mol_idx)
                 oracle_log_dir = os.path.join(start_idx_dir, oracle_name)
                 os.makedirs(oracle_log_dir, exist_ok=True)
 

@@ -39,7 +39,6 @@ tmp/
 
 # Large files that shouldn't be pushed to GitHub
 *.csv
-!actives.csv
 !benchmark/actives.csv
 *.whl
 *.ckpt

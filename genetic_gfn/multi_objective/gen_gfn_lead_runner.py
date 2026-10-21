@@ -15,6 +15,7 @@ if not repo_root:
     repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, repo_root)
 
+from benchmark.actives_loader import actives_smiles_by_target
 from benchmark.experiment_utils import get_job_dir, get_log_dir
 
 from benchmark.spec_tasks import list_antitarget_receptors
@@ -24,35 +25,16 @@ TARGET_TO_ANTI_TARGETS = {
     "6nzp": list_antitarget_receptors(),
 }
 
-# Hardcoded once from: GeneticGFN/multi_objective/genetic_gfn/lead/actives.csv
-# Mapping: target -> list of seed_mol SMILES to run as similarity lead molecules.
-TARGET_TO_SEED_MOLS = {
-    "parp1": [
-        "CN(C)Cc3ccc2c(CNC(=O)c1cccn12)c3",
-        "COc1[nH]c3cccc2C(=O)NCCc1c23",
-        "O/N=C/c1cn3CCNC(=O)c2cccc1c23",
-    ],
-    "fa7": [
-        "CC(C)CCN(Cc2ccc1ccc(C(N)=N)cc1c2)C(=O)c3cccc4ccccc34",
-        "N[C@H](Cc1ccccc1)C(=O)N2CCC[C@H]2C(=O)N[C@H](CCl)CCCN=C(N)N",
-        "CC(C)Nc3ccc(c1cc(N)cc(C(O)=O)c1)n(CC(=O)NCc2ccc(C(N)=N)cc2)c3=O",
-    ],
-    "5ht1b": [
-        "Cc1nc(-c2ccc(-c3ccc(C(=O)N4CCc5cc6c(cc54)[C@]4(CC[N@H+](C)CC4)CO6)cc3)c(C)c2)no1",
-        "FC(F)(F)c1cccc(N2CC[NH2+]CC2)c1",
-        "C1=CC2=NC=C(CCCN3CC[NH+](CCc4ccccc4)CC3)[C@H]2C=C1n1cnnc1",
-    ],
-    "braf": [
-        "CCN(CC)CCNC(=O)c3cnn4c(c2cccc(NC(=O)Nc1ccc(Cl)c(C(F)(F)F)c1)c2)ccnc34",
-        "FC(F)(F)c4cc(NC(=O)Nc3ccc(Oc2ccnc(C(=O)NCCN1CCOCC1)c2)cc3)ccc4Cl",
-        "FC(F)(F)c4cc(NC(=O)Nc3ccc(Oc2ccnc(C(=O)Nc1cccnc1)c2)cc3)ccc4Cl",
-    ],
-    "jak2": [
-        "OCCCCc2nc1ccccc1c4ncnc3[nH]cc2c34",
-        "COC(=O)CC2Nc1ccccc1c3ccnc4[nH]cc2c34",
-        "Oc5ccc(C2NC(=O)c1ccccc1c3ccnc4[nH]cc2c34)c(F)c5",
-    ],
-}
+
+def _default_seed_mols(target: str) -> list[str]:
+    """Lead seeds from ``benchmark/actives.csv`` (row order)."""
+    by_target = actives_smiles_by_target()
+    if target not in by_target:
+        raise ValueError(
+            f"Target '{target}' is missing from benchmark/actives.csv and no "
+            f"--seed_mol/--seed_mol_map was provided. Known targets: {sorted(by_target)}"
+        )
+    return by_target[target]
 
 def _require_yaml():
     """
@@ -402,7 +384,7 @@ if __name__ == "__main__":
                 # Priority:
                 # 1) --seed_mol_map[target] (must provide 3)
                 # 2) --seed_mol (must provide 3, applies to all targets)
-                # 3) TARGET_TO_SEED_MOLS[target] (multiple, hardcoded from actives.csv)
+                # 3) benchmark/actives.csv for this target
                 if target in seed_mol_map:
                     lead_smiles_list = _require_exactly_three_seed_mols(
                         target, seed_mol_map.get(target, []), source="--seed_mol_map"
@@ -410,12 +392,8 @@ if __name__ == "__main__":
                 elif global_seed_mols:
                     lead_smiles_list = list(global_seed_mols)
                 else:
-                    if target not in TARGET_TO_SEED_MOLS:
-                        raise ValueError(
-                            f"Target '{target}' is missing from TARGET_TO_SEED_MOLS and no --seed_mol/--seed_mol_map was provided."
-                        )
                     lead_smiles_list = _require_exactly_three_seed_mols(
-                        target, TARGET_TO_SEED_MOLS.get(target, []), source="TARGET_TO_SEED_MOLS"
+                        target, _default_seed_mols(target), source="benchmark/actives.csv"
                     )
 
                 # Use a nested loop so each target runs once per seed_mol.

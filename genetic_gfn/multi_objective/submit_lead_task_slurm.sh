@@ -25,7 +25,9 @@ PY
 "$0")"
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
 REPO_ROOT="${REPO_ROOT:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
+PMO_ROOT="${PROJECT_ROOT:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
 MULTI_OBJ_DIR="${REPO_ROOT}/multi_objective"
+ACTIVES_CSV="${PMO_ROOT}/benchmark/actives.csv"
 
 # We want ALL outputs rooted at OUT_DIR.
 RESULTS_ROOT="${OUT_DIR}/genetic_gfn/results"
@@ -68,24 +70,19 @@ SEED="${SEEDS[$seed_idx]}"
 SEED_MOL_IDX="${SEED_MOL_INDICES[$seed_mol_idx]}"
 THRESHOLD="${THRESHOLDS[$threshold_idx]}"
 
-# Seed molecules for each target (extracted from actives.csv - 3 molecules per target)
-# Format: ['target_0'], ['target_1'], ['target_2'] for the 3 seed molecules per target
-declare -A SEED_MOLECULES=(
-    # parp1 (3 seed molecules)
-    ['parp1_0']='CN(C)Cc3ccc2c(CNC(=O)c1cccn12)c3'
-    ['parp1_1']='COc1[nH]c3cccc2C(=O)NCCc1c23'
-    ['parp1_2']='O/N=C/c1cn3CCNC(=O)c2cccc1c23'
-    # fa7 (3 seed molecules)
-    ['fa7_0']='CC(C)CCN(Cc2ccc1ccc(C(N)=N)cc1c2)C(=O)c3cccc4ccccc34'
-    ['fa7_1']='N[C@H](Cc1ccccc1)C(=O)N2CCC[C@H]2C(=O)N[C@H](CCl)CCCN=C(N)N'
-    ['fa7_2']='CC(C)Nc3ccc(c1cc(N)cc(C(O)=O)c1)n(CC(=O)NCc2ccc(C(N)=N)cc2)c3=O'
-    # 5ht1b (3 seed molecules)
-    ['5ht1b_0']='Cc1nc(-c2ccc(-c3ccc(C(=O)N4CCc5cc6c(cc54)[C@]4(CC[N@H+](C)CC4)CO6)cc3)c(C)c2)no1'
-    ['5ht1b_1']='FC(F)(F)c1cccc(N2CC[NH2+]CC2)c1'
-    ['5ht1b_2']='C1=CC2=NC=C(CCCN3CC[NH+](CCc4ccccc4)CC3)[C@H]2C=C1n1cnnc1'
-)
-
-SEED_MOLECULE="${SEED_MOLECULES[${TARGET_NAME}_${SEED_MOL_IDX}]}"
+# Seed SMILES from the canonical table (row order per target).
+SEED_MOLECULE="$(python - "$ACTIVES_CSV" "$TARGET_NAME" "$SEED_MOL_IDX" <<'PY'
+import csv, sys
+path, target, idx = sys.argv[1], sys.argv[2], int(sys.argv[3])
+rows = [r for r in csv.DictReader(open(path, encoding="utf-8", newline="")) if (r.get("target") or "").strip() == target]
+if idx < 0 or idx >= len(rows):
+    raise SystemExit(f"Lead seed index {idx} out of range for {target} (n={len(rows)}) in {path}")
+smiles = (rows[idx].get("smiles") or "").strip()
+if not smiles:
+    raise SystemExit(f"Empty SMILES for {target}[{idx}] in {path}")
+print(smiles)
+PY
+)"
 
 if [ -z "$SEED_MOLECULE" ]; then
     echo "Error: Seed molecule not found for target $TARGET_NAME index $SEED_MOL_IDX"

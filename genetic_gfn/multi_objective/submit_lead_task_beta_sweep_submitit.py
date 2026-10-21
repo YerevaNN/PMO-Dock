@@ -1,15 +1,20 @@
 import argparse
 import copy
-import csv
 import os
 import subprocess
 import sys
 import time
 from dataclasses import dataclass
 from itertools import product
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import yaml
+
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+from benchmark.actives_loader import actives_csv_path, actives_smiles_by_target
 
 try:
     import submitit
@@ -49,23 +54,9 @@ def _script_dirs():
     return repo_root, multi_objective_dir
 
 
-def load_seed_mols_by_target(actives_csv_path: str) -> Dict[str, List[str]]:
-    """
-    Reads `benchmark/actives.csv` (default) and builds:
-      { target: [seed_smiles, ...], ... }
-
-    Only uses columns: `target`, `seed_smiles`.
-    """
-    by_target: Dict[str, List[str]] = {}
-    with open(actives_csv_path, "r", newline="") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            t = (row.get("target") or "").strip()
-            s = (row.get("seed_smiles") or "").strip()
-            if not t or not s:
-                continue
-            by_target.setdefault(t, []).append(s)
-    return by_target
+def load_seed_mols_by_target(csv_path: Optional[str] = None) -> Dict[str, List[str]]:
+    """Load ``{target: [smiles, ...]}`` from ``benchmark/actives.csv``."""
+    return dict(actives_smiles_by_target(csv_path))
 
 
 def parse_beta_grid(hparam_config_path: str):
@@ -181,7 +172,7 @@ def main():
         "--actives_csv",
         type=str,
         default=None,
-        help="Defaults to benchmark/oracles/actives.csv under PROJECT_ROOT.",
+        help="Defaults to benchmark/actives.csv under PROJECT_ROOT.",
     )
     parser.add_argument("--targets", nargs="+", default=None, help="Optional subset of targets to run (default: all in actives.csv)")
     parser.add_argument("--hparam_config", type=str, default="genetic_gfn/hparams_tune.yaml")
@@ -211,11 +202,11 @@ def main():
 
     # Make actives_csv + hparam_config absolute (relative to multi_objective/)
     if args.actives_csv is None:
-        actives_csv_path = os.path.join(repo_root, "benchmark", "actives.csv")
+        csv_path = str(actives_csv_path())
     else:
-        actives_csv_path = args.actives_csv
-        if not os.path.isabs(actives_csv_path):
-            actives_csv_path = os.path.join(multi_objective_dir, actives_csv_path)
+        csv_path = args.actives_csv
+        if not os.path.isabs(csv_path):
+            csv_path = os.path.join(multi_objective_dir, csv_path)
 
     hparam_config_path = args.hparam_config
     if not os.path.isabs(hparam_config_path):
@@ -224,9 +215,9 @@ def main():
     beta_vals = parse_beta_grid(hparam_config_path)
     seeds = [int(s) for s in args.seeds]
 
-    seed_mols_by_target = load_seed_mols_by_target(actives_csv_path)
+    seed_mols_by_target = load_seed_mols_by_target(csv_path)
     if not seed_mols_by_target:
-        raise ValueError(f"No seed molecules found in {actives_csv_path} (need columns: target, seed_smiles).")
+        raise ValueError(f"No seed molecules found in {csv_path} (need columns: target, smiles).")
 
     if args.targets:
         targets = [t for t in args.targets if t in seed_mols_by_target]
@@ -291,7 +282,7 @@ def main():
     print("MULTI_OBJECTIVE_DIR:", multi_objective_dir)
     print("OUT_DIR:", out_dir)
     print("SUBMITIT_LOG_ROOT:", submitit_root)
-    print("ACTIVES_CSV:", actives_csv_path)
+    print("ACTIVES_CSV:", csv_path)
     print("HPARAM_CONFIG:", hparam_config_path)
     print("TARGETS:", targets)
     print("SEED_MOLS_BY_TARGET:", {t: len(seed_mols_by_target[t]) for t in targets})

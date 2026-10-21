@@ -35,6 +35,7 @@ from rdkit import Chem
 from rdkit.Chem import DataStructs, AllChem, QED, RDConfig
 from omegaconf import OmegaConf
 
+from benchmark.actives_loader import lead_seed_ds, lead_seed_smiles
 from benchmark.tasks import task_name2constraints
 from benchmark.rewards import gaussian_modifier, select_sigma
 
@@ -116,9 +117,6 @@ class GenMolOpt():
         torch.manual_seed(seed)
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(seed)
-        # df = pd.read_csv('scripts/exps/lead/docking/actives.csv')
-        # Get the directory where the current script is located
-        script_dir = os.path.dirname(os.path.abspath(__file__))
         if self.args.tox:
             print('Running TOX optimization')
             self.start_smiles = "CC/C(=C(/CC)c1ccc(O)cc1)c1ccc(O)cc1"
@@ -126,17 +124,10 @@ class GenMolOpt():
             self.start_fp = AllChem.GetMorganFingerprintAsBitVect(start_mol, 2, 2048)
             self.start_prop = 1.0
         else:
-            # Load starting molecule from actives (used for both seed and random pool)
-            proj_root = os.environ.get(
-                "PROJECT_ROOT",
-                os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(script_dir)))),
-            )
-            df = pd.read_csv(os.path.join(proj_root, "benchmark", "actives.csv"))
-            df = df[df['target'] == self.args.oracle_name]
-            self.start_smiles = df['smiles'].iloc[self.args.start_mol_idx]
+            self.start_smiles = lead_seed_smiles(self.args.oracle_name, self.args.start_mol_idx)
             start_mol = Chem.MolFromSmiles(self.start_smiles)
             self.start_fp = AllChem.GetMorganFingerprintAsBitVect(start_mol, 2, 2048)
-            self.start_prop = df['DS'].iloc[self.args.start_mol_idx]
+            self.start_prop = lead_seed_ds(self.args.oracle_name, self.args.start_mol_idx)
             if self.args.pool == 'seed':
                 print(f'Start SMILES:\t{self.start_smiles}')
                 print(f'Start DS:\t{self.start_prop}')
