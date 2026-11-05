@@ -27,7 +27,7 @@ bash saturn/setup.sh                                         # saturn
 
 **Assets not in git:** `genmol/model.ckpt`, Saturn Mamba prior, GFN `Prior.ckpt` — set paths via env vars below.
 
-RDKit and Open Babel are required for docking; install them via conda in each env.
+RDKit and **Open Babel 3.1.1** are required for docking. Pin this version in every env that runs the docking oracle (inline or HTTP): different Open Babel builds can change 3D conformers and therefore QuickVina scores. Method env files already pin it (e.g. `genetic_chemalactica/env/environment.yml`: `openbabel=3.1.1`); the docking service (`./benchmark/docking_oracle/start_oracle.sh`) uses `ORACLE_CONDA_ENV` (default `cheml`), which must provide the same pin.
 
 ## Structure and usage
 
@@ -89,7 +89,7 @@ For a single experiment, inline docking is usually enough. Use the HTTP service 
 | Task | Properties & targets | Oracle budget | Seeds | Objective |
 |------|---------------------|---------------|-------|-----------|
 | **hit** | QED, SA, docking on **parp1, fa7, 5ht1b, braf, jak2** | 3000 | 0–9 | **Hit rate** — share of oracle calls that yield molecules meeting all property cutoffs |
-| **lead** | Similarity to seed, QED, SA; same 5 proteins; 3 seeds/protein (`benchmark/actives.csv`); sim **0.4** / **0.6** | 1000 | 0–2 | **Best docking score** among molecules that satisfy lead constraints (`lead.<protein>_04_0` … `_06_2`) |
+| **lead** | Similarity to seed, QED ∈ **[0.6, 1]**, SA ∈ **[1, 4]**, docking ≥ same per-target \(s_{\min}\) as hit; 3 seeds/protein (`benchmark/actives.csv`); sim **0.4** / **0.6** | 1000 | 0–2 | **Best docking score** among molecules that satisfy lead constraints (`lead.<protein>_04_0` … `_06_2`; see `benchmark/tasks.py`) |
 | **spec** | Docking on **6nzp** + antitarget (**7uyt, 5ut5, 7uyw, 4l00, 5khw**), QED, SA | 3000 | 0–2 | **Mean top-10 margin** — average of the ten largest (target docking − antitarget docking) gaps among constraint-passing molecules (`spec.6nzp_7uyt`, …); see `benchmark/metrics/task_metrics.py` (`k=10`) |
 
 Constraint details: `benchmark/tasks.py`, `benchmark/spec_tasks.py`. Metrics: `benchmark/metrics/task_metrics.py`.
@@ -103,9 +103,11 @@ Constraint details: `benchmark/tasks.py`, `benchmark/spec_tasks.py`. Metrics: `b
 | **saturn** | Prior/agent Mamba with RL, experience replay, and optional memory; JSON configs per task | `saturn/saturn_hit_runner.py`, `saturn_lead_runner.py` | `saturn` |
 | **genetic_gfn** | Genetic algorithm + GFlowNet over molecular graphs; multi-objective vector (docking, QED, SA, …) | `genetic_gfn/multi_objective/gen_gfn_hit_runner.py`, `gen_gfn_lead_runner.py` | `genetic_gfn` |
 
+**Category-best hyperparameters** (source of truth, including `exp-N` → grid mapping): **[`BEST_HPARAMS.md`](BEST_HPARAMS.md)**. Do not infer the freeze from a `best_*.yaml` filename.
+
 **Examples**
 
-Single run (hit, genetic_chemalactica):
+Single run (hit, genetic_chemalactica) using the frozen values from that table:
 
 ```bash
 export PROJECT_ROOT=$PWD PYTHONPATH=$PWD
@@ -116,7 +118,7 @@ python genetic_chemalactica/genetic_runner.py \
   --seeds 0 1 2 3 4 5 6 7 8 9 --max_oracle_calls 3000
 ```
 
-Category-best ChemLlama configs: `best_hit.yaml` / `best_lead.yaml` / `best_spec.yaml` (use the matching budget: hit/spec **3000**, lead **1000**).
+Convenience copies of the table (hit/spec budget **3000**, lead **1000**): ChemLlama `genetic/configs/best_{hit,lead,spec}.yaml`, GenMol `genmol_*_best.yaml`, GFN `hparams_best_{hit,lead,spec}.yaml`, Saturn `*_best.json`. If a copy disagrees with `BEST_HPARAMS.md`, the table wins.
 
 Hparam sweep (spec, Saturn) — start the docking service first, then launch parallel jobs over a grid defined in `saturn/spec/hparams.yaml` (`sigma`, memory on/off, reward type, …):
 

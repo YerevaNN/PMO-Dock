@@ -67,7 +67,8 @@ class Genetic_GFN_Optimizer(BaseOptimizer):
             param.requires_grad = False
 
         # optimizer = torch.optim.Adam(Agent.rnn.parameters(), lr=config['learning_rate'])
-        log_z = torch.nn.Parameter(torch.tensor([5.]).cuda())
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        log_z = torch.nn.Parameter(torch.tensor([5.], device=device))
         optimizer = torch.optim.Adam([{'params': Agent.rnn.parameters(), 
                                         'lr': config['learning_rate']},
                                     {'params': log_z, 
@@ -329,7 +330,7 @@ class Genetic_GFN_Optimizer(BaseOptimizer):
                     exp_agent_likelihood, _ = Agent.likelihood(exp_seqs.long())
                     prior_agent_likelihood, _ = Prior.likelihood(exp_seqs.long())
 
-                    reward = torch.tensor(exp_score).cuda()
+                    reward = torch.tensor(exp_score, device=log_z.device)
                     exp_forward_flow = exp_agent_likelihood + log_z
                     exp_backward_flow = reward * config['beta']
                     loss = torch.pow(exp_forward_flow - exp_backward_flow, 2).mean()

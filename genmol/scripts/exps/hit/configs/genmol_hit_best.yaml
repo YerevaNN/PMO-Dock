@@ -1,5 +1,3 @@
-# GenMol category-best for HIT (test leaderboard exp-2).
-# Key hparams: softmax_temp=1.5, randomness=1.2, gamma=0.5.
 seed: [1, 2, 3, 4, 5]
 model_path: model.ckpt
 oracle_name: [parp1, fa7, 5ht1b, braf, jak2]

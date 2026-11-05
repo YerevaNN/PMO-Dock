@@ -927,7 +927,8 @@ class BaseOptimizer:
         # wandb.run.name = self.model_name + "_" + oracle.name + "_" + wandb.run.id
         np.random.seed(seed)
         torch.manual_seed(seed)
-        torch.cuda.manual_seed_all(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)
         random.seed(seed)
         self.seed = seed
         # Set task_label for CSV file naming (use run_name if available, otherwise generate from seed)

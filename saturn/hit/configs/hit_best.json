@@ -29,7 +29,7 @@
         "agent": "${SATURN_PRIOR_PATH}",
         "batch_size": 16,
         "learning_rate": 0.0001,
-        "sigma": 64.0,
+        "sigma": 256.0,
         "augmented_memory": true,
         "augmentation_rounds": 10,
         "selective_memory_purge": true
@@ -45,7 +45,7 @@
         "bucket_size": 10
       },
       "hallucinated_memory": {
-        "execute_hallucinated_memory": true,
+        "execute_hallucinated_memory": false,
         "hallucination_method": "ga",
         "num_hallucinations": 100,
         "num_selected": 5,

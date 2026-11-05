@@ -1,14 +1,12 @@
-# GenMol category-best for LEAD (test leaderboard exp-0).
-# Key hparams: softmax_temp=0.8, randomness=1.2, gamma=0, pool=seed.
-seed: [1, 2, 3]
+seed: [0, 1, 2]
 start_mol_idx: [0, 1, 2]
-sim_thr: [0.4, 0.6]
-oracle_name: [braf, jak2]
+sim_thr: [0.6]
+oracle_name: [braf, jak2, fa7, parp1, 5ht1b]
 model_path: model.ckpt
 num_gen: 100
 num_iter: 50
-softmax_temp: 0.8
-randomness: 1.2
+softmax_temp: 1.5
+randomness: 3
 gamma: 0
 w: 2
 min_mol_size: 20
@@ -16,3 +14,4 @@ max_mol_size: 40
 warmup: 200
 reward: original
 pool: seed
+max_oracle_calls: 1000

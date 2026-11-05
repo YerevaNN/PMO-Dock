@@ -20,8 +20,14 @@ from benchmark.experiment_utils import get_job_dir, get_log_dir
 from benchmark.spec_tasks import list_antitarget_receptors
 
 # Selectivity configuration: target -> list of anti-target docking receptors.
+# Optional override for eval-only antitargets, e.g. GFN_SPEC_EVAL_ANTIS=4l00,5khw,7uyw
+_spec_antis_env = (os.environ.get("GFN_SPEC_EVAL_ANTIS") or "").strip()
 TARGET_TO_ANTI_TARGETS = {
-    "6nzp": list_antitarget_receptors(),
+    "6nzp": (
+        [a.strip() for a in _spec_antis_env.split(",") if a.strip()]
+        if _spec_antis_env
+        else list_antitarget_receptors()
+    ),
 }
 
 

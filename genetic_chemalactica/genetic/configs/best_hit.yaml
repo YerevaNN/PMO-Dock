@@ -1,5 +1,3 @@
-# ChemLlama category-best hyperparameters for HIT generation (test leaderboard).
-# Selected as validation hit-category best (sweep exp-6): P=10, I=50, S=3.
 model:
   checkpoint_path: "yerevann/ChemLlama-1B-40k-steps"
   tokenizer_path: "yerevann/ChemLlama-1B-40k-steps"

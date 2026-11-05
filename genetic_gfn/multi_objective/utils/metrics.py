@@ -17,7 +17,14 @@ import networkx as nx
 import itertools
 import time
 from tqdm import tqdm
-from mol_mdp_ext import BlockMoleculeDataExtended
+
+try:
+    # Optional: only needed when scoring BlockMoleculeDataExtended objects.
+    # GeneticGFN hit/lead/spec path uses RDKit mols and does not need torch_sparse.
+    from mol_mdp_ext import BlockMoleculeDataExtended
+except Exception:  # pragma: no cover
+    class BlockMoleculeDataExtended:  # type: ignore[no-redef]
+        pass
 
 
 def compute_success(mols, scores, objectives, score_succ):

@@ -10,6 +10,7 @@ PORT="${ORACLE_PORT:-5050}"
 ENV_NAME="${ORACLE_CONDA_ENV:-cheml}"
 
 echo "Starting benchmark docking oracle on ${HOST}:${PORT} (conda env: ${ENV_NAME})"
+echo "Require Open Babel 3.1.1 in this env (pin mismatches change docking scores)."
 echo "Workers: export DOCKING_VINA_URL=http://${HOST}:${PORT}"
 exec conda run -n "$ENV_NAME" python "$SCRIPT_DIR/oracle_app.py" \
   --host "$HOST" \

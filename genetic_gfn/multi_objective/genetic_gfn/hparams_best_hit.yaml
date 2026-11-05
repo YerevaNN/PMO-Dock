@@ -1,4 +1,3 @@
-# Genetic GFN category-best for HIT (test leaderboard exp-2).
 learning_rate: 0.0005
 batch_size: 32
 num_keep: 512

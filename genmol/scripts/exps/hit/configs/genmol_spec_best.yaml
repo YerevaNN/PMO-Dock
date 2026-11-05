@@ -1,5 +1,3 @@
-# GenMol category-best for SPECIFICITY (test leaderboard exp-1).
-# Key hparams: softmax_temp=0.5, randomness=0.5, gamma=0.1.
 seed: [0, 1, 2]
 model_path: model.ckpt
 oracle_name: [6nzp_7uyt, 6nzp_5ut5, 6nzp_7uyw, 6nzp_4l00, 6nzp_5khw]
