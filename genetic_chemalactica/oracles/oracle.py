@@ -27,7 +27,11 @@ from genetic_chemalactica.utils.tasks import (
     validate_reward_type,
 )
 from benchmark.rewards import hit_reward, compute_geam_reward
-from genetic_chemalactica.utils.rewards import hit_docking_score_reward, hit_spec_reward
+from genetic_chemalactica.utils.rewards import (
+    gated_norm_docking_reward,
+    hit_docking_score_reward,
+    hit_spec_reward,
+)
 
 
 def select_oracle(
@@ -81,6 +85,8 @@ def select_oracle(
         score_computer = partial(hit_spec_reward, sigmas=sigmas, hit_ranges=hit_ranges)
     elif task_name.startswith("lead."):
         score_computer = partial(hit_docking_score_reward, sigmas=sigmas, hit_ranges=hit_ranges)
+    elif task_name.startswith("novel."):
+        score_computer = partial(gated_norm_docking_reward, sigmas=sigmas, hit_ranges=hit_ranges)
     else:
         raise ValueError(f"Oracle name {task_name} does not exist")
 

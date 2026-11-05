@@ -210,7 +210,7 @@ if __name__ == "__main__":
         nargs="+",
         required=False,
         type=str,
-        help="Task name(s), e.g. hit.parp1, lead.parp1_04_0, spec.6nzp_7uyt.",
+        help="Task name(s), e.g. hit.parp1, lead.parp1_06_0, spec.6nzp_4l00, novel.parp1.",
     )
     parser.add_argument(
         "--vina_url",
@@ -228,7 +228,7 @@ if __name__ == "__main__":
         required=False,
         type=str,
         default="hit",
-        help="Reward type for hit.<target> docking tasks: hit (default), max, or geam. Ignored for lead/spec tasks."
+        help="hit.<target>: hit (default), max, or geam. novel.<target>: gated. Ignored for lead/spec."
     )
     parser.add_argument(
         "--hparam_config",

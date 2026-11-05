@@ -75,6 +75,20 @@ def hit_docking_score_reward(measured, sigmas, hit_ranges):
     return docking_score / 20 * computed_hit_reward
 
 
+def gated_norm_docking_reward(measured, sigmas, hit_ranges):
+    """(DS/20) times a 1-or-Gaussian term for docking, QED, and SA.
+
+    Each term is 1 inside its hit range and a Gaussian of the distance to
+    that range outside it. When all three cutoffs are met the product is 1,
+    so the reward is the normalized docking score. A missing docking score
+    scores 0.
+    """
+    docking_score = measured[0]
+    if docking_score is None:
+        return 0.0
+    return float(docking_score) / 20.0 * hit_reward(measured, sigmas, hit_ranges)
+
+
 def hit_spec_reward(measured, sigmas, hit_ranges):
     assert len(measured) == 4
     target_docking_score = measured[0]

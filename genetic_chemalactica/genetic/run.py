@@ -143,6 +143,26 @@ def props_dict_from_task(full_task_name: str):
             ("QED", lambda: "[0.5, 0.94]"),
             ("SAS", lambda: "[1.0, 5.0]")
         ),
+        "novel.parp1": (
+            ("QED", lambda: "[0.5, 0.94]"),
+            ("SAS", lambda: "[1, 5]")
+        ),
+        "novel.fa7": (
+            ("QED", lambda: "[0.5, 0.94]"),
+            ("SAS", lambda: "[1, 5]")
+        ),
+        "novel.5ht1b": (
+            ("QED", lambda: "[0.5, 0.94]"),
+            ("SAS", lambda: "[1, 5]")
+        ),
+        "novel.braf": (
+            ("QED", lambda: "[0.5, 0.94]"),
+            ("SAS", lambda: "[1, 5]")
+        ),
+        "novel.jak2": (
+            ("QED", lambda: "[0.5, 0.94]"),
+            ("SAS", lambda: "[1, 5]")
+        ),
         "lead.parp1_04_0": (
             ("SIMILAR", lambda: f"{parp1_0} [0.40,1.00]"),
             ("QED", lambda: "[0.60,1.00]"),

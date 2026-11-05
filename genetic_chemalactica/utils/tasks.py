@@ -30,8 +30,9 @@ def _spec_hit_ranges_dict():
     return {spec_task_name(at): _SPEC_HIT_RANGES for at in ANTITARGET_RECEPTORS}
 
 
-_ALLOWED_TASK_PREFIXES = ("hit.", "lead.", "spec.")
+_ALLOWED_TASK_PREFIXES = ("hit.", "lead.", "spec.", "novel.")
 _ALLOWED_HIT_REWARD_TYPES = frozenset({"hit", "max", "geam"})
+_ALLOWED_NOVEL_REWARD_TYPES = frozenset({"gated"})
 _HIT_TARGETS = frozenset({"parp1", "fa7", "5ht1b", "braf", "jak2"})
 
 
@@ -39,7 +40,7 @@ def validate_task_name(task_name: str) -> str:
     if not task_name or "." not in task_name:
         raise ValueError(
             f"Task name '{task_name}' is invalid. "
-            "Use hit.<target>, lead.<target>_<sim>_<seed>, or spec.6nzp_<antitarget>."
+            "Use hit.<target>, lead.<target>_<sim>_<seed>, spec.6nzp_<antitarget>, or novel.<target>."
         )
     if task_name.startswith("dock."):
         raise ValueError(
@@ -54,7 +55,7 @@ def validate_task_name(task_name: str) -> str:
     if task_name.startswith(("pmo.", "lead_no_sim.")):
         raise ValueError(
             f"Task name '{task_name}' is not supported in genetic_chemalactica. "
-            "Use hit.<target>, lead.<target>_<sim>_<seed>, or spec.6nzp_<antitarget>."
+            "Use hit.<target>, lead.<target>_<sim>_<seed>, spec.6nzp_<antitarget>, or novel.<target>."
         )
     if not any(task_name.startswith(prefix) for prefix in _ALLOWED_TASK_PREFIXES):
         raise ValueError(
@@ -64,16 +65,33 @@ def validate_task_name(task_name: str) -> str:
 
 
 def is_hit_docking_task(task_name: str) -> bool:
-    """True for hit.<target> docking tasks (not lead or spec)."""
+    """True for hit.<target> docking tasks (not lead, spec, or novel)."""
     if not task_name.startswith("hit."):
         return False
     target = task_name.split(".", 1)[1]
     return target in _HIT_TARGETS
 
 
+def is_novel_docking_task(task_name: str) -> bool:
+    """True for novel.<target>. Same proteins as hit, Gaussian docking reward."""
+    if not task_name.startswith("novel."):
+        return False
+    target = task_name.split(".", 1)[1]
+    return target in _HIT_TARGETS
+
+
 def validate_reward_type(task_name: str, reward_type: str) -> str:
-    """Validate --reward_type for hit.<target> docking tasks (hit, max, or geam)."""
+    """Validate --reward_type.
+
+    hit.<target> accepts hit, max, or geam. novel.<target> accepts gated.
+    Lead and spec ignore the flag and use their fixed rewards.
+    """
     reward_type = (reward_type or "hit").strip().lower()
+    if is_novel_docking_task(task_name) and reward_type not in _ALLOWED_NOVEL_REWARD_TYPES:
+        raise ValueError(
+            f"reward_type '{reward_type}' is invalid for {task_name}. "
+            f"Allowed values: {', '.join(sorted(_ALLOWED_NOVEL_REWARD_TYPES))}."
+        )
     if is_hit_docking_task(task_name) and reward_type not in _ALLOWED_HIT_REWARD_TYPES:
         raise ValueError(
             f"reward_type '{reward_type}' is invalid for {task_name}. "
@@ -189,6 +207,11 @@ def task_name2grpo_prompt(task_name: str, start_token: str, ranged: bool=True):
             f"[QED][0.50,1.00][/QED]"
             f"[SAS][1.00,5.00][/SAS]"
         ),
+        "novel.parp1": "[QED][0.50,0.94][/QED][SAS][1.00,5.00][/SAS]",
+        "novel.fa7": "[QED][0.50,0.94][/QED][SAS][1.00,5.00][/SAS]",
+        "novel.5ht1b": "[QED][0.50,0.94][/QED][SAS][1.00,5.00][/SAS]",
+        "novel.braf": "[QED][0.50,0.94][/QED][SAS][1.00,5.00][/SAS]",
+        "novel.jak2": "[QED][0.50,0.94][/QED][SAS][1.00,5.00][/SAS]",
         "lead.parp1_04_0": (
             f"[SIMILAR]{parp1_0} [0.40,1.00][/SIMILAR]"
             f"[QED][0.60,1.00][/QED]"
@@ -389,6 +412,11 @@ def task_name2computer_names(task_name: str):
         "hit.braf": ["DOCKING.braf", "QED", "SAS"],
         "hit.fa7": ["DOCKING.fa7", "QED", "SAS"],
         "hit.5ht1b": ["DOCKING.5ht1b", "QED", "SAS"],
+        "novel.parp1": ["DOCKING.parp1", "QED", "SAS"],
+        "novel.fa7": ["DOCKING.fa7", "QED", "SAS"],
+        "novel.5ht1b": ["DOCKING.5ht1b", "QED", "SAS"],
+        "novel.braf": ["DOCKING.braf", "QED", "SAS"],
+        "novel.jak2": ["DOCKING.jak2", "QED", "SAS"],
 
         # lead oracles
         "lead.parp1_04_0": ["DOCKING.parp1", f"SIMILAR.{parp1_0}", "QED", "SAS"],
@@ -440,7 +468,11 @@ def task_name2hit_ranges(task_name: str):
         "hit.5ht1b": [[8.7845, math.inf], [0.5, 1.0], [1.0, 5.0]],
         "hit.braf": [[10.3, math.inf], [0.5, 1.0], [1.0, 5.0]],
         "hit.jak2": [[9.1, math.inf], [0.5, 1.0], [1.0, 5.0]],
-
+        "novel.parp1": [[10.0, math.inf], [0.5, 1.0], [1.0, 5.0]],
+        "novel.fa7": [[8.5, math.inf], [0.5, 1.0], [1.0, 5.0]],
+        "novel.5ht1b": [[8.7845, math.inf], [0.5, 1.0], [1.0, 5.0]],
+        "novel.braf": [[10.3, math.inf], [0.5, 1.0], [1.0, 5.0]],
+        "novel.jak2": [[9.1, math.inf], [0.5, 1.0], [1.0, 5.0]],
 
         # lead oracles
         "lead.parp1_04_0": [None, [0.4, 1.0], [0.6, 1.0], [1.0, 4.0]],

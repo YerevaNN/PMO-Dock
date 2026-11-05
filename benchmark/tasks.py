@@ -89,6 +89,31 @@ def task_name2constraints(task_name):
             "sa_score": [1.00, 5.00],
             "docking_score": list(HIT_DOCKING_THRESHOLDS["jak2"]),
         },
+        "novel.parp1": {
+            "qed_score": [0.50, 1.00],
+            "sa_score": [1.00, 5.00],
+            "docking_score": list(HIT_DOCKING_THRESHOLDS["parp1"]),
+        },
+        "novel.fa7": {
+            "qed_score": [0.50, 1.00],
+            "sa_score": [1.00, 5.00],
+            "docking_score": list(HIT_DOCKING_THRESHOLDS["fa7"]),
+        },
+        "novel.5ht1b": {
+            "qed_score": [0.50, 1.00],
+            "sa_score": [1.00, 5.00],
+            "docking_score": list(HIT_DOCKING_THRESHOLDS["5ht1b"]),
+        },
+        "novel.braf": {
+            "qed_score": [0.50, 1.00],
+            "sa_score": [1.00, 5.00],
+            "docking_score": list(HIT_DOCKING_THRESHOLDS["braf"]),
+        },
+        "novel.jak2": {
+            "qed_score": [0.50, 1.00],
+            "sa_score": [1.00, 5.00],
+            "docking_score": list(HIT_DOCKING_THRESHOLDS["jak2"]),
+        },
     }[task_name]
 
 

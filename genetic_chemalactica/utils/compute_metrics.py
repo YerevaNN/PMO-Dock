@@ -101,6 +101,31 @@ def task_name2hit_thresholds(task_name):
             "SAS": lambda v: v <= 5,
             "QED": lambda v: v >= 0.5
         },
+        "novel.parp1": {
+            "DOCKING.parp1": lambda v: v >= 10.0,
+            "SAS": lambda v: v <= 5,
+            "QED": lambda v: v >= 0.5
+        },
+        "novel.fa7": {
+            "DOCKING.fa7": lambda v: v >= 8.5,
+            "SAS": lambda v: v <= 5,
+            "QED": lambda v: v >= 0.5
+        },
+        "novel.5ht1b": {
+            "DOCKING.5ht1b": lambda v: v >= 8.7845,
+            "SAS": lambda v: v <= 5,
+            "QED": lambda v: v >= 0.5
+        },
+        "novel.braf": {
+            "DOCKING.braf": lambda v: v >= 10.3,
+            "SAS": lambda v: v <= 5,
+            "QED": lambda v: v >= 0.5
+        },
+        "novel.jak2": {
+            "DOCKING.jak2": lambda v: v >= 9.1,
+            "SAS": lambda v: v <= 5,
+            "QED": lambda v: v >= 0.5
+        },
         "lead.parp1_04_0": {
             f"SIMILAR.{parp1_0}": lambda v: v >= 0.4,
             "QED": lambda v: v >= 0.6,

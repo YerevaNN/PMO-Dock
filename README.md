@@ -86,11 +86,14 @@ For a single experiment, inline docking is usually enough. Use the HTTP service 
 
 **Specificity (spec)** — Bind strongly to one target (6nzp) but weakly to related off-targets — selective ligands, not promiscuous binders.
 
+**Novel hit** — Same five proteins as hit. The prompt is QED and SA only. The search reward is the stored docking score divided by 20, times a 1-or-Gaussian term on docking, QED, and SA (`--reward_type gated`, tasks `novel.parp1` … `novel.jak2`).
+
 | Task | Properties & targets | Oracle budget | Seeds | Objective |
 |------|---------------------|---------------|-------|-----------|
 | **hit** | QED, SA, docking on **parp1, fa7, 5ht1b, braf, jak2** | 3000 | 0–9 | **Hit rate** — share of oracle calls that yield molecules meeting all property cutoffs |
 | **lead** | Similarity to seed, QED ∈ **[0.6, 1]**, SA ∈ **[1, 4]**, docking ≥ same per-target \(s_{\min}\) as hit; 3 seeds/protein (`benchmark/actives.csv`); sim **0.4** / **0.6** | 1000 | 0–2 | **Best docking score** among molecules that satisfy lead constraints (`lead.<protein>_04_0` … `_06_2`; see `benchmark/tasks.py`) |
 | **spec** | Docking on **6nzp** + antitarget (**7uyt, 5ut5, 7uyw, 4l00, 5khw**), QED, SA | 3000 | 0–2 | **Mean top-10 margin** — average of the ten largest (target docking − antitarget docking) gaps among constraint-passing molecules (`spec.6nzp_7uyt`, …); see `benchmark/metrics/task_metrics.py` (`k=10`) |
+| **novel** | QED, SA, docking on **parp1, fa7, 5ht1b, braf, jak2**. Prompt has no docking tag. | 3000 | 0–4 | **Gaussian docking reward** — `(DS/20)` times a 1-or-Gaussian term on docking, QED, and SA (`novel.parp1` … `novel.jak2`, `--reward_type gated`) |
 
 Constraint details: `benchmark/tasks.py`, `benchmark/spec_tasks.py`. Metrics: `benchmark/metrics/task_metrics.py`.
 
@@ -118,7 +121,14 @@ python genetic_chemalactica/genetic_runner.py \
   --seeds 0 1 2 3 4 5 6 7 8 9 --max_oracle_calls 3000
 ```
 
-Convenience copies of the table (hit/spec budget **3000**, lead **1000**): ChemLlama `genetic/configs/best_{hit,lead,spec}.yaml`, GenMol `genmol_*_best.yaml`, GFN `hparams_best_{hit,lead,spec}.yaml`, Saturn `*_best.json`. If a copy disagrees with `BEST_HPARAMS.md`, the table wins.
+Convenience copies of the table (hit/spec budget **3000**, lead **1000**): ChemLlama `genetic/configs/best_{hit,lead,spec}.yaml`, GenMol `genmol_*_best.yaml`, GFN `hparams_best_{hit,lead,spec}.yaml`, Saturn `*_best.json`. If a copy disagrees with `BEST_HPARAMS.md`, the table wins. Novel hit is a separate protocol, not a row of that sweep: `genetic/configs/best_novel.yaml` (`pool_size=20`, `num_prompts=50`, `num_similars=2`, `reward_type=gated`).
+
+```bash
+python genetic_chemalactica/genetic_runner.py \
+  --config_file genetic_chemalactica/genetic/configs/best_novel.yaml \
+  --task_name novel.parp1 --reward_type gated \
+  --seeds 0 1 2 3 4 --max_oracle_calls 3000
+```
 
 Hparam sweep (spec, Saturn) — start the docking service first, then launch parallel jobs over a grid defined in `saturn/spec/hparams.yaml` (`sigma`, memory on/off, reward type, …):
 
