@@ -86,11 +86,40 @@ For a single experiment, inline docking is usually enough. Use the HTTP service 
 
 **Specificity (spec)** — Bind strongly to one target (6nzp) but weakly to related off-targets — selective ligands, not promiscuous binders.
 
-| Task | Properties | Oracle budget | Seeds | Objective |
-|------|------------|---------------|-------|-----------|
-| **hit** | QED ∈ **[0.5, 1]**, SA ∈ **[1, 5]**<br>Docking ≥ target-specific floor | 3000 | 0–9 | **Hit rate** — share of oracle calls that yield molecules meeting all property cutoffs |
-| **lead** | Similarity ≥ **0.6**<br>QED ∈ **[0.6, 1]**, SA ∈ **[1, 4]**<br>Docking ≥ target-specific floor | 1000 | 0–2 | **Best docking score** among molecules that satisfy lead constraints (`lead.<protein>_06_0` … `_06_2`; see `benchmark/tasks.py`) |
-| **spec** | QED ∈ **[0.4, 1]**, SA ∈ **[1, 4]**<br>Docking ≥ target-specific floor | 3000 | 0–2 | **Mean top-10 margin** — average of the ten largest (target docking − antitarget docking) gaps among constraint-passing molecules (`spec.6nzp_7uyt`, …); see `benchmark/metrics/task_metrics.py` (`k=10`) |
+<table>
+  <thead>
+    <tr>
+      <th align="left">Task</th>
+      <th align="left" width="36%">Properties</th>
+      <th align="left">Oracle budget</th>
+      <th align="left">Seeds</th>
+      <th align="left" width="36%">Objective</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>hit</strong></td>
+      <td>QED ∈ <strong>[0.5, 1]</strong>, SA ∈ <strong>[1, 5]</strong><br>Docking ≥ target-specific floor</td>
+      <td>3000</td>
+      <td>0–9</td>
+      <td><strong>Hit rate</strong> — share of oracle calls that yield molecules meeting all property cutoffs</td>
+    </tr>
+    <tr>
+      <td><strong>lead</strong></td>
+      <td>Similarity ≥ <strong>0.6</strong><br>QED ∈ <strong>[0.6, 1]</strong>, SA ∈ <strong>[1, 4]</strong><br>Docking ≥ target-specific floor</td>
+      <td>1000</td>
+      <td>0–2</td>
+      <td><strong>Best docking score</strong> among molecules that satisfy lead constraints (<code>lead.&lt;protein&gt;_06_0</code> … <code>_06_2</code>; see <code>benchmark/tasks.py</code>)</td>
+    </tr>
+    <tr>
+      <td><strong>spec</strong></td>
+      <td>QED ∈ <strong>[0.4, 1]</strong>, SA ∈ <strong>[1, 4]</strong><br>Docking ≥ target-specific floor</td>
+      <td>3000</td>
+      <td>0–2</td>
+      <td><strong>Mean top-10 margin</strong> — average of the ten largest (target docking − antitarget docking) gaps among constraint-passing molecules (<code>spec.6nzp_7uyt</code>, …); see <code>benchmark/metrics/task_metrics.py</code> (<code>k=10</code>)</td>
+    </tr>
+  </tbody>
+</table>
 
 Constraint details: `benchmark/tasks.py`, `benchmark/spec_tasks.py`. Metrics: `benchmark/metrics/task_metrics.py`.
 
