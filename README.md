@@ -92,11 +92,11 @@ For a single experiment, inline docking is usually enough. Use the HTTP service 
 
 **Specificity (spec)** — Bind strongly to one target (6nzp) but weakly to related off-targets — selective ligands, not promiscuous binders.
 
-| Task | Properties & targets | Oracle budget | Seeds | Objective |
-|------|---------------------|---------------|-------|-----------|
-| **hit** | **parp1, fa7, 5ht1b, braf, jak2**<br>QED ∈ **[0.5, 1]**, SA ∈ **[1, 5]**<br>Docking ≥ **10.0, 8.5, 8.7845, 10.3, 9.1** (same order) | 3000 | 0–9 | **Hit rate** — share of oracle calls that yield molecules meeting all property cutoffs |
-| **lead** | Same five proteins, each from 3 known actives (`benchmark/actives.csv`)<br>Similarity ≥ **0.4** or ≥ **0.6**<br>QED ∈ **[0.6, 1]**, SA ∈ **[1, 4]**<br>Docking ≥ that protein's hit floor | 1000 | 0–2 | **Best docking score** among molecules that satisfy lead constraints (`lead.<protein>_04_0` … `_06_2`; see `benchmark/tasks.py`) |
-| **spec** | **6nzp** against **7uyt, 5ut5, 7uyw, 4l00, 5khw**<br>QED ∈ **[0.4, 1]**, SA ∈ **[1, 4]**<br>Target docking ≥ **10.67** | 3000 | 0–2 | **Mean top-10 margin** — average of the ten largest (target docking − antitarget docking) gaps among constraint-passing molecules (`spec.6nzp_7uyt`, …); see `benchmark/metrics/task_metrics.py` (`k=10`) |
+| Task | Targets | Properties | Oracle budget | Seeds | Objective |
+|------|---------|------------|---------------|-------|-----------|
+| **hit** | **parp1, fa7, 5ht1b, braf, jak2** | QED ∈ **[0.5, 1]**, SA ∈ **[1, 5]**<br>Docking ≥ target-specific floor | 3000 | 0–9 | **Hit rate** — share of oracle calls that yield molecules meeting all property cutoffs |
+| **lead** | Same five proteins, 3 known actives each (`benchmark/actives.csv`) | Similarity ≥ **0.6**<br>QED ∈ **[0.6, 1]**, SA ∈ **[1, 4]**<br>Docking ≥ target-specific floor | 1000 | 0–2 | **Best docking score** among molecules that satisfy lead constraints (`lead.<protein>_06_0` … `_06_2`; see `benchmark/tasks.py`) |
+| **spec** | **6nzp** against **7uyt, 5ut5, 7uyw, 4l00, 5khw** | QED ∈ **[0.4, 1]**, SA ∈ **[1, 4]**<br>Docking ≥ target-specific floor | 3000 | 0–2 | **Mean top-10 margin** — average of the ten largest (target docking − antitarget docking) gaps among constraint-passing molecules (`spec.6nzp_7uyt`, …); see `benchmark/metrics/task_metrics.py` (`k=10`) |
 
 Constraint details: `benchmark/tasks.py`, `benchmark/spec_tasks.py`. Metrics: `benchmark/metrics/task_metrics.py`.
 
