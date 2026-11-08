@@ -1,5 +1,5 @@
 """
-Public import surface for GeneticChemalactica evaluators.
+Public import surface for GeneticChemllama evaluators.
 
 These are the exact property computers / oracle utilities used by the benchmark.
 """
@@ -13,5 +13,5 @@ from benchmark.computers.property_computers import (  # noqa: F401
     select_prop_computer,
 )
 
-from genetic_chemalactica.oracles.oracle import select_oracle  # noqa: F401
+from genetic_chemllama.oracles.oracle import select_oracle  # noqa: F401
 

@@ -15,7 +15,7 @@ repo_root = os.path.dirname(_gc_root)
 sys.path.insert(0, repo_root)
 
 from benchmark.experiment_utils import get_job_dir, get_log_dir
-from genetic_chemalactica.utils.tasks import validate_task_name, validate_reward_type
+from genetic_chemllama.utils.tasks import validate_task_name, validate_reward_type
 
 
 def to_nested_dict(orig_dict):
@@ -94,8 +94,8 @@ def run_genetic(cfg_path):
     cfg_abs = os.path.abspath(cfg_path)
 
     proj = os.environ.get("PROJECT_ROOT", repo_root)
-    run_py = os.path.abspath(os.path.join(proj, "genetic_chemalactica", "genetic", "run.py"))
-    workdir = os.path.abspath(os.path.join(proj, "genetic_chemalactica"))
+    run_py = os.path.abspath(os.path.join(proj, "genetic_chemllama", "genetic", "run.py"))
+    workdir = os.path.abspath(os.path.join(proj, "genetic_chemllama"))
 
     genetic_command = [
         sys.executable,

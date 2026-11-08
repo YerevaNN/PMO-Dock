@@ -28,7 +28,7 @@ benchmark-core = [
     "requests>=2.28",
 ]
 
-# Only the installable library: algorithm folders (saturn, genetic_chemalactica, …) stay in the repo
+# Only the installable library: algorithm folders (saturn, genetic_chemllama, …) stay in the repo
 # as runnable scripts but are not shipped as top-level packages in the wheel unless listed here.
 [tool.setuptools.packages.find]
 where = ["."]

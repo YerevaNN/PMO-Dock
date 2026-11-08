@@ -7,7 +7,7 @@ def gaussian_modifier(x, mu, sigma):
     return np.exp(-0.5 * np.power((x - mu) / sigma, 2.0))
 
 def select_sigma(prop_name: str):
-    """Shared sigma for reward scaling; supports both root and genetic_chemalactica/saturn key names."""
+    """Shared sigma for reward scaling; supports both root and genetic_chemllama/saturn key names."""
     coef = 0.1
     prop_name2sigma = {
         "qed_score": coef * 1,
