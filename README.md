@@ -88,12 +88,12 @@ For a single experiment, inline docking is usually enough. Use the HTTP service 
 
 **Novel hit** — Same five proteins as hit. The prompt is QED and SA only. The search reward is the stored docking score divided by 20, times a 1-or-Gaussian term on docking, QED, and SA (`--reward_type gated`, tasks `novel.parp1` … `novel.jak2`).
 
-| Task | Targets | Properties | Oracle budget | Seeds | Objective |
-|------|---------|------------|---------------|-------|-----------|
-| **hit** | **parp1, fa7, 5ht1b, braf, jak2** | QED ∈ **[0.5, 1]**, SA ∈ **[1, 5]**<br>Docking ≥ target-specific floor | 3000 | 0–9 | **Hit rate** — share of oracle calls that yield molecules meeting all property cutoffs |
-| **lead** | Same five proteins, 3 known actives each (`benchmark/actives.csv`) | Similarity ≥ **0.6**<br>QED ∈ **[0.6, 1]**, SA ∈ **[1, 4]**<br>Docking ≥ target-specific floor | 1000 | 0–2 | **Best docking score** among molecules that satisfy lead constraints (`lead.<protein>_06_0` … `_06_2`; see `benchmark/tasks.py`) |
-| **spec** | **6nzp** against **7uyt, 5ut5, 7uyw, 4l00, 5khw** | QED ∈ **[0.4, 1]**, SA ∈ **[1, 4]**<br>Docking ≥ target-specific floor | 3000 | 0–2 | **Mean top-10 margin** — average of the ten largest (target docking − antitarget docking) gaps among constraint-passing molecules (`spec.6nzp_7uyt`, …); see `benchmark/metrics/task_metrics.py` (`k=10`) |
-| **novel** | **parp1, fa7, 5ht1b, braf, jak2** | QED, SA, docking ≥ target-specific floor<br>Prompt has no docking tag | 3000 | 0–4 | **Gaussian docking reward** — `(DS/20)` times a 1-or-Gaussian term on docking, QED, and SA (`novel.parp1` … `novel.jak2`, `--reward_type gated`) |
+| Task | Properties | Oracle budget | Seeds | Objective |
+|------|------------|---------------|-------|-----------|
+| **hit** | QED ∈ **[0.5, 1]**, SA ∈ **[1, 5]**<br>Docking ≥ target-specific floor | 3000 | 0–9 | **Hit rate** — share of oracle calls that yield molecules meeting all property cutoffs |
+| **lead** | Similarity ≥ **0.6**<br>QED ∈ **[0.6, 1]**, SA ∈ **[1, 4]**<br>Docking ≥ target-specific floor | 1000 | 0–2 | **Best docking score** among molecules that satisfy lead constraints (`lead.<protein>_06_0` … `_06_2`; see `benchmark/tasks.py`) |
+| **spec** | QED ∈ **[0.4, 1]**, SA ∈ **[1, 4]**<br>Docking ≥ target-specific floor | 3000 | 0–2 | **Mean top-10 margin** — average of the ten largest (target docking − antitarget docking) gaps among constraint-passing molecules (`spec.6nzp_7uyt`, …); see `benchmark/metrics/task_metrics.py` (`k=10`) |
+| **novel** | QED, SA, docking ≥ target-specific floor | 3000 | 0–4 | **Gaussian docking reward** — `(DS/20)` times a 1-or-Gaussian term on docking, QED, and SA (`novel.parp1` … `novel.jak2`, `--reward_type gated`) |
 
 Constraint details: `benchmark/tasks.py`, `benchmark/spec_tasks.py`. Metrics: `benchmark/metrics/task_metrics.py`.
 
