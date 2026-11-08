@@ -1,7 +1,7 @@
 import numpy as np
 from rdkit.Chem import Mol
 
-from genetic_chemalactica.oracles.synthesizability.sascorer import calculateScore
+from genetic_chemllama.oracles.synthesizability.sascorer import calculateScore
 
 class SAScore:
     """Synthetic Accessibility score (RDKit Mol -> float)."""

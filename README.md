@@ -4,7 +4,7 @@
 
 PMO-Dock is a benchmark for **protein-aware molecular optimization**: given a biological target, search for small molecules that bind well, look drug-like, and are easy to synthesize.
 
-The repo is a **monorepo**. The installable **`benchmark`** package holds shared oracles (QED, SA, docking, similarity), task definitions, and experiment helpers. Four generative methods (`genetic_chemalactica`, `genmol`, `saturn`, `genetic_gfn`) live alongside it as runnable research code, each with its own conda environment and `*_runner.py` entrypoints.
+The repo is a **monorepo**. The installable **`benchmark`** package holds shared oracles (QED, SA, docking, similarity), task definitions, and experiment helpers. Four generative methods (`genetic_chemllama`, `genmol`, `saturn`, `genetic_gfn`) live alongside it as runnable research code, each with its own conda environment and `*_runner.py` entrypoints.
 
 ## Install
 
@@ -19,7 +19,7 @@ pip install -e '.[benchmark-core]'
 **Per-algorithm conda env** (create only what you need):
 
 ```bash
-conda env create -f genetic_chemalactica/env/environment.yml   # env name: cheml
+conda env create -f genetic_chemllama/env/environment.yml   # env name: cheml
 bash genmol/env/setup.sh                                      # genmol
 bash saturn/setup.sh                                         # saturn
 # genetic_gfn: see genetic_gfn/multi_objective/README.md
@@ -27,14 +27,14 @@ bash saturn/setup.sh                                         # saturn
 
 **Assets not in git:** `genmol/model.ckpt`, Saturn Mamba prior, GFN `Prior.ckpt` — set paths via env vars below.
 
-RDKit and **Open Babel 3.1.1** are required for docking. Pin this version in every env that runs the docking oracle (inline or HTTP): different Open Babel builds can change 3D conformers and therefore QuickVina scores. Method env files already pin it (e.g. `genetic_chemalactica/env/environment.yml`: `openbabel=3.1.1`); the docking service (`./benchmark/docking_oracle/start_oracle.sh`) uses `ORACLE_CONDA_ENV` (default `cheml`), which must provide the same pin.
+RDKit and **Open Babel 3.1.1** are required for docking. Pin this version in every env that runs the docking oracle (inline or HTTP): different Open Babel builds can change 3D conformers and therefore QuickVina scores. Method env files already pin it (e.g. `genetic_chemllama/env/environment.yml`: `openbabel=3.1.1`); the docking service (`./benchmark/docking_oracle/start_oracle.sh`) uses `ORACLE_CONDA_ENV` (default `cheml`), which must provide the same pin.
 
 ## Structure and usage
 
 | Path | Role |
 |------|------|
 | **`benchmark/`** | Shipped library: property computers, docking, tasks, `actives.csv`, `experiment_utils` |
-| **`genetic_chemalactica/`** | ChemLlaMA + genetic pool optimization |
+| **`genetic_chemllama/`** | ChemLlama + genetic pool optimization |
 | **`genmol/`** | Discrete diffusion (GenMol) |
 | **`saturn/`** | Mamba/RNN RL with memory |
 | **`genetic_gfn/`** | GA + GFlowNet multi-objective search |
@@ -88,35 +88,42 @@ For a single experiment, inline docking is usually enough. Use the HTTP service 
 
 **Novel hit** — Same five proteins as hit. The prompt is QED and SA only. The search reward is the stored docking score divided by 20, times a 1-or-Gaussian term on docking, QED, and SA (`--reward_type gated`, tasks `novel.parp1` … `novel.jak2`).
 
-| Task | Properties & targets | Oracle budget | Seeds | Objective |
-|------|---------------------|---------------|-------|-----------|
-| **hit** | QED, SA, docking on **parp1, fa7, 5ht1b, braf, jak2** | 3000 | 0–9 | **Hit rate** — share of oracle calls that yield molecules meeting all property cutoffs |
-| **lead** | Similarity to seed, QED ∈ **[0.6, 1]**, SA ∈ **[1, 4]**, docking ≥ same per-target \(s_{\min}\) as hit; 3 seeds/protein (`benchmark/actives.csv`); sim **0.4** / **0.6** | 1000 | 0–2 | **Best docking score** among molecules that satisfy lead constraints (`lead.<protein>_04_0` … `_06_2`; see `benchmark/tasks.py`) |
-| **spec** | Docking on **6nzp** + antitarget (**7uyt, 5ut5, 7uyw, 4l00, 5khw**), QED, SA | 3000 | 0–2 | **Mean top-10 margin** — average of the ten largest (target docking − antitarget docking) gaps among constraint-passing molecules (`spec.6nzp_7uyt`, …); see `benchmark/metrics/task_metrics.py` (`k=10`) |
-| **novel** | QED, SA, docking on **parp1, fa7, 5ht1b, braf, jak2**. Prompt has no docking tag. | 3000 | 0–4 | **Gaussian docking reward** — `(DS/20)` times a 1-or-Gaussian term on docking, QED, and SA (`novel.parp1` … `novel.jak2`, `--reward_type gated`) |
+| Task | Targets | Properties | Oracle budget | Seeds | Objective |
+|------|---------|------------|---------------|-------|-----------|
+| **hit** | **parp1, fa7, 5ht1b, braf, jak2** | QED ∈ **[0.5, 1]**, SA ∈ **[1, 5]**<br>Docking ≥ target-specific floor | 3000 | 0–9 | **Hit rate** — share of oracle calls that yield molecules meeting all property cutoffs |
+| **lead** | Same five proteins, 3 known actives each (`benchmark/actives.csv`) | Similarity ≥ **0.6**<br>QED ∈ **[0.6, 1]**, SA ∈ **[1, 4]**<br>Docking ≥ target-specific floor | 1000 | 0–2 | **Best docking score** among molecules that satisfy lead constraints (`lead.<protein>_06_0` … `_06_2`; see `benchmark/tasks.py`) |
+| **spec** | **6nzp** against **7uyt, 5ut5, 7uyw, 4l00, 5khw** | QED ∈ **[0.4, 1]**, SA ∈ **[1, 4]**<br>Docking ≥ target-specific floor | 3000 | 0–2 | **Mean top-10 margin** — average of the ten largest (target docking − antitarget docking) gaps among constraint-passing molecules (`spec.6nzp_7uyt`, …); see `benchmark/metrics/task_metrics.py` (`k=10`) |
+| **novel** | **parp1, fa7, 5ht1b, braf, jak2** | QED, SA, docking ≥ target-specific floor<br>Prompt has no docking tag | 3000 | 0–4 | **Gaussian docking reward** — `(DS/20)` times a 1-or-Gaussian term on docking, QED, and SA (`novel.parp1` … `novel.jak2`, `--reward_type gated`) |
 
 Constraint details: `benchmark/tasks.py`, `benchmark/spec_tasks.py`. Metrics: `benchmark/metrics/task_metrics.py`.
 
 ## Algorithms
 
-| Method | Idea | Runner(s) | Conda env |
-|--------|------|-----------|-----------|
-| **genetic_chemalactica** | ChemLlaMA proposes SMILES; a genetic pool keeps diverse high-scoring molecules; oracle scores QED/SA/docking each round | `genetic_chemalactica/genetic_runner.py` | `cheml` |
-| **genmol** | Discrete diffusion model samples and mutates molecules; fragment vocabulary for hit/lead | `genmol/genmol_hit_runner.py`, `genmol_lead_runner.py` | `genmol` |
-| **saturn** | Prior/agent Mamba with RL, experience replay, and optional memory; JSON configs per task | `saturn/saturn_hit_runner.py`, `saturn_lead_runner.py` | `saturn` |
-| **genetic_gfn** | Genetic algorithm + GFlowNet over molecular graphs; multi-objective vector (docking, QED, SA, …) | `genetic_gfn/multi_objective/gen_gfn_hit_runner.py`, `gen_gfn_lead_runner.py` | `genetic_gfn` |
+| Method | Runner(s) | Conda env |
+|--------|-----------|-----------|
+| **genetic_chemllama** | `genetic_chemllama/genetic_runner.py` | `cheml` |
+| **genmol** | `genmol/genmol_hit_runner.py`, `genmol_lead_runner.py` | `genmol` |
+| **saturn** | `saturn/saturn_hit_runner.py`, `saturn_lead_runner.py` | `saturn` |
+| **genetic_gfn** | `genetic_gfn/multi_objective/gen_gfn_hit_runner.py`, `gen_gfn_lead_runner.py` | `genetic_gfn` |
+
+| Method | Idea |
+|--------|------|
+| **genetic_chemllama** | ChemLlama proposes SMILES; a genetic pool keeps diverse high-scoring molecules; oracle scores QED/SA/docking each round |
+| **genmol** | Discrete diffusion model samples and mutates molecules; fragment vocabulary for hit/lead |
+| **saturn** | Prior/agent Mamba with RL, experience replay, and optional memory; JSON configs per task |
+| **genetic_gfn** | Genetic algorithm + GFlowNet over molecular graphs; multi-objective vector (docking, QED, SA, …) |
 
 **Category-best hyperparameters** (source of truth, including `exp-N` → grid mapping): **[`BEST_HPARAMS.md`](BEST_HPARAMS.md)**. Do not infer the freeze from a `best_*.yaml` filename.
 
 **Examples**
 
-Single run (hit, genetic_chemalactica) using the frozen values from that table:
+Single run (hit, genetic_chemllama) using the frozen values from that table:
 
 ```bash
 export PROJECT_ROOT=$PWD PYTHONPATH=$PWD
 conda activate cheml
-python genetic_chemalactica/genetic_runner.py \
-  --config_file genetic_chemalactica/genetic/configs/best_hit.yaml \
+python genetic_chemllama/genetic_runner.py \
+  --config_file genetic_chemllama/genetic/configs/best_hit.yaml \
   --task_name hit.parp1 --reward_type hit \
   --seeds 0 1 2 3 4 5 6 7 8 9 --max_oracle_calls 3000
 ```
@@ -124,8 +131,8 @@ python genetic_chemalactica/genetic_runner.py \
 Convenience copies of the table (hit/spec budget **3000**, lead **1000**): ChemLlama `genetic/configs/best_{hit,lead,spec}.yaml`, GenMol `genmol_*_best.yaml`, GFN `hparams_best_{hit,lead,spec}.yaml`, Saturn `*_best.json`. If a copy disagrees with `BEST_HPARAMS.md`, the table wins. Novel hit is a separate protocol, not a row of that sweep: `genetic/configs/best_novel.yaml` (`pool_size=20`, `num_prompts=50`, `num_similars=2`, `reward_type=gated`).
 
 ```bash
-python genetic_chemalactica/genetic_runner.py \
-  --config_file genetic_chemalactica/genetic/configs/best_novel.yaml \
+python genetic_chemllama/genetic_runner.py \
+  --config_file genetic_chemllama/genetic/configs/best_novel.yaml \
   --task_name novel.parp1 --reward_type gated \
   --seeds 0 1 2 3 4 --max_oracle_calls 3000
 ```

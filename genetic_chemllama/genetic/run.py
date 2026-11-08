@@ -7,7 +7,7 @@ import time
 import logging
 
 # Add parent directory to path for imports.
-# genetic_chemalactica/ on path so `from utils.*` resolves to this package's utils/
+# genetic_chemllama/ on path so `from utils.*` resolves to this package's utils/
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
@@ -17,7 +17,7 @@ from transformers import AutoModelForCausalLM, PreTrainedTokenizerFast
 
 from benchmark.benchmark_timer import BenchmarkTimer
 
-from genetic_chemalactica.oracles.oracle import select_oracle
+from genetic_chemllama.oracles.oracle import select_oracle
 from benchmark.actives_loader import lead_seed_smiles
 from benchmark.docking_oracle.docking import ANTITARGET_RECEPTORS
 from benchmark.spec_tasks import spec_task_name
@@ -119,7 +119,7 @@ class TempScheduler:
 
 
 def props_dict_from_task(full_task_name: str):
-    from genetic_chemalactica.utils.tasks import validate_task_name
+    from genetic_chemllama.utils.tasks import validate_task_name
 
     validate_task_name(full_task_name)
     prop_dict = {

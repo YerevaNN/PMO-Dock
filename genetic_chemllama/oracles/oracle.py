@@ -19,7 +19,7 @@ import math
 import torch
 
 from benchmark.computers.property_computers import dynamic_computer
-from genetic_chemalactica.utils.tasks import (
+from genetic_chemllama.utils.tasks import (
     task_name2computer_names,
     task_name2hit_ranges,
     select_sigma,
@@ -27,7 +27,7 @@ from genetic_chemalactica.utils.tasks import (
     validate_reward_type,
 )
 from benchmark.rewards import hit_reward, compute_geam_reward
-from genetic_chemalactica.utils.rewards import (
+from genetic_chemllama.utils.rewards import (
     gated_norm_docking_reward,
     hit_docking_score_reward,
     hit_spec_reward,

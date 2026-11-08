@@ -263,7 +263,7 @@ def predict_binding_score(rdkit_mols, protein, verb=True):
     try:
         # Create the command to run binding_predictors.py in the bind_oracles environment
         predictor_script = resolve_from_project_root(
-            "genetic_chemalactica", "oracles", "binding_predictors.py"
+            "genetic_chemllama", "oracles", "binding_predictors.py"
         )
         bind_env = os.environ.get("CONDA_ENV_BIND_ORACLES", "bind_oracles")
         cmd = [

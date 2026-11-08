@@ -50,11 +50,11 @@ def validate_task_name(task_name: str) -> str:
     if task_name.lower().startswith("geam") or task_name.lower().split(".", 1)[0] == "geam":
         raise ValueError(
             f"Task name '{task_name}' is not supported. "
-            "GEAM is a reward/oracle mode in Saturn and GenMol, not a genetic_chemalactica task prefix."
+            "GEAM is a reward/oracle mode in Saturn and GenMol, not a genetic_chemllama task prefix."
         )
     if task_name.startswith(("pmo.", "lead_no_sim.")):
         raise ValueError(
-            f"Task name '{task_name}' is not supported in genetic_chemalactica. "
+            f"Task name '{task_name}' is not supported in genetic_chemllama. "
             "Use hit.<target>, lead.<target>_<sim>_<seed>, spec.6nzp_<antitarget>, or novel.<target>."
         )
     if not any(task_name.startswith(prefix) for prefix in _ALLOWED_TASK_PREFIXES):
