@@ -1,0 +1,13 @@
+# Phase 1 sweep for REINVENT4 Mol2Mol on lead tasks.
+#
+# Budget is 1000 here, so the batch_size / step-count tradeoff is sharper than on hit.
+# distance_threshold caps how far the agent may drift from the prior in NLL terms --
+# a Mol2Mol-specific lever on how much the similarity constraint is allowed to relax.
+# No diversity_filter axis: with a single seed molecule, scaffold bucketing mostly
+# fires on the seed's own scaffold, which is the one we want to keep.
+learning_strategy:
+  sigma: [64, 128]
+
+parameters:
+  batch_size: [32, 64]
+  distance_threshold: [100, 99999]

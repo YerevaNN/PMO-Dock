@@ -1,0 +1,62 @@
+{
+  "run_type": "staged_learning",
+  "device": "cuda:0",
+  "tb_logdir": null,
+  "parameters": {
+    "summary_csv_prefix": "summary",
+    "use_checkpoint": false,
+    "purge_memories": false,
+    "prior_file": ".reinvent",
+    "agent_file": ".reinvent",
+    "batch_size": 64,
+    "randomize_smiles": true,
+    "unique_sequences": true
+  },
+  "learning_strategy": {
+    "type": "dap",
+    "sigma": 128,
+    "rate": 0.0001
+  },
+  "diversity_filter": {
+    "type": "IdenticalMurckoScaffold",
+    "bucket_size": 25,
+    "minscore": 0.4
+  },
+  "inception": {
+    "memory_size": 100,
+    "sample_size": 10
+  },
+  "stage": [
+    {
+      "chkpt_file": "agent.chkpt",
+      "termination": "simple",
+      "max_score": 1.0,
+      "min_steps": 50,
+      "max_steps": 1000000,
+      "scoring": {
+        "type": "arithmetic_mean",
+        "component": [
+          {
+            "PMODock": {
+              "endpoint": [
+                {
+                  "name": "pmodock",
+                  "weight": 1.0,
+                  "params": {
+                    "target": "6nzp_7uyt",
+                    "reward_type": "geam",
+                    "budget": 3000,
+                    "history_path": "history.csv",
+                    "lead_smiles": "",
+                    "oracle_url": "",
+                    "vina_seed": 0
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

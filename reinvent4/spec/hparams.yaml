@@ -1,0 +1,20 @@
+# Phase 1 sweep for REINVENT4 on spec tasks (6nzp + antitarget).
+#
+# Same axes as hit: spec is also de novo, only the reward differs (margin-weighted).
+# Run on ONE antitarget pair (6nzp_7uyt) with 3 seeds before the full 5x3 grid.
+# 3 x 2 x 2 = 12 combinations.
+#
+# Rationale:
+#   sigma      -- REINVENT4 defaults to 128; saturn's best is 64 on hit. Bracket both.
+#   batch_size -- the key knob under a tight budget: a smaller batch buys more gradient
+#                 steps per oracle call, which is exactly what REINVENT4 lacks relative
+#                 to saturn's augmentation rounds.
+#   diversity_filter -- Murcko bucketing vs. fingerprint-similarity bucketing.
+learning_strategy:
+  sigma: [64, 128, 256]
+
+parameters:
+  batch_size: [32, 64]
+
+diversity_filter:
+  type: ["IdenticalMurckoScaffold", "ScaffoldSimilarity"]

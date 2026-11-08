@@ -4,7 +4,7 @@
 
 PMO-Dock is a benchmark for **protein-aware molecular optimization**: given a biological target, search for small molecules that bind well, look drug-like, and are easy to synthesize.
 
-The repo is a **monorepo**. The installable **`benchmark`** package holds shared oracles (QED, SA, docking, similarity), task definitions, and experiment helpers. Four generative methods (`genetic_chemllama`, `genmol`, `saturn`, `genetic_gfn`) live alongside it as runnable research code, each with its own conda environment and `*_runner.py` entrypoints.
+The repo is a **monorepo**. The installable **`benchmark`** package holds shared oracles (QED, SA, docking, similarity), task definitions, and experiment helpers. Five generative methods (`genetic_chemllama`, `genmol`, `saturn`, `genetic_gfn`, `reinvent4`) live alongside it as runnable research code, each with its own conda environment and `*_runner.py` entrypoints.
 
 ## Install
 
@@ -23,6 +23,7 @@ conda env create -f genetic_chemllama/env/environment.yml   # env name: cheml
 bash genmol/env/setup.sh                                      # genmol
 bash saturn/setup.sh                                         # saturn
 # genetic_gfn: see genetic_gfn/multi_objective/README.md
+sbatch reinvent4/slurm/setup.slurm                            # reinvent4 (v4.5.11 + priors; must go via SLURM)
 ```
 
 **Assets not in git:** `genmol/model.ckpt`, Saturn Mamba prior, GFN `Prior.ckpt` — set paths via env vars below.
@@ -38,6 +39,7 @@ RDKit and **Open Babel 3.1.1** are required for docking. Pin this version in eve
 | **`genmol/`** | Discrete diffusion (GenMol) |
 | **`saturn/`** | Mamba/RNN RL with memory |
 | **`genetic_gfn/`** | GA + GFlowNet multi-objective search |
+| **`reinvent4/`** | REINVENT4 RL: de novo for hit/spec, seeded Mol2Mol / LibInvent for lead |
 
 Run `*_runner.py` from the repo root. Results go under `$OUT_DIR/<method>/...` (default `$PROJECT_ROOT/results`).
 
@@ -77,6 +79,10 @@ For a single experiment, inline docking is usually enough. Use the HTTP service 
 | `SATURN_PRIOR_PATH` | Path to Saturn Mamba checkpoint |
 | `GENMOL_MODEL_PATH` | Path to GenMol `model.ckpt` |
 | `GENMOL_ROOT` | GenMol tree root (default `$PROJECT_ROOT/genmol`) |
+| `WEKA_ROOT` | Large-asset root (default `/mnt/weka/$USER`) |
+| `REINVENT4_SRC` | REINVENT4 checkout (default `$WEKA_ROOT/large-assets/reinvent4/src`) |
+| `REINVENT_PRIOR_BASE` | REINVENT4 priors (default `$REINVENT4_SRC/priors`) |
+| `REINVENT4_ENV` | REINVENT4 conda env prefix (default `$WEKA_ROOT/envs/reinvent4`) |
 
 ## Tasks
 
@@ -102,6 +108,7 @@ Constraint details: `benchmark/tasks.py`, `benchmark/spec_tasks.py`. Metrics: `b
 | **genmol** | Discrete diffusion model samples and mutates molecules; fragment vocabulary for hit/lead | `genmol/genmol_hit_runner.py`, `genmol_lead_runner.py` | `genmol` |
 | **saturn** | Prior/agent Mamba with RL, experience replay, and optional memory; JSON configs per task | `saturn/saturn_hit_runner.py`, `saturn_lead_runner.py` | `saturn` |
 | **genetic_gfn** | Genetic algorithm + GFlowNet over molecular graphs; multi-objective vector (docking, QED, SA, …) | `genetic_gfn/multi_objective/gen_gfn_hit_runner.py`, `gen_gfn_lead_runner.py` | `genetic_gfn` |
+| **reinvent4** | REINVENT4 staged RL (DAP augmented likelihood). De novo SMILES-RNN on hit/spec; **seeded** Mol2Mol / LibInvent on lead — the only method that takes the lead molecule as model input. Requires the docking HTTP service. See `reinvent4/README.md` | `reinvent4/reinvent_hit_runner.py`, `reinvent_lead_runner.py` | `reinvent4` |
 
 **Category-best hyperparameters** (source of truth, including `exp-N` → grid mapping): **[`BEST_HPARAMS.md`](BEST_HPARAMS.md)**. Do not infer the freeze from a `best_*.yaml` filename.
 
@@ -150,6 +157,7 @@ Result layout: `$OUT_DIR/<method>/<task>/<date>/exp-N/<target>/seed-K/` (hparam 
 - **Saturn** — [github.com/schwallergroup/saturn](https://github.com/schwallergroup/saturn)
 - **GenMol** — [github.com/NVIDIA-Digital-Bio/genmol](https://github.com/NVIDIA-Digital-Bio/genmol)
 - **Genetic GFN** — [github.com/GFNOrg/gflownet](https://github.com/GFNOrg/gflownet)
+- **REINVENT4** — [github.com/MolecularAI/REINVENT4](https://github.com/MolecularAI/REINVENT4) (pinned to `v4.5.11`)
 
 ## License
 
