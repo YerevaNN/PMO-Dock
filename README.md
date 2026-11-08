@@ -94,21 +94,29 @@ For a single experiment, inline docking is usually enough. Use the HTTP service 
 
 | Task | Properties & targets | Oracle budget | Seeds | Objective |
 |------|---------------------|---------------|-------|-----------|
-| **hit** | QED, SA, docking on **parp1, fa7, 5ht1b, braf, jak2** | 3000 | 0–9 | **Hit rate** — share of oracle calls that yield molecules meeting all property cutoffs |
-| **lead** | Similarity to seed, QED ∈ **[0.6, 1]**, SA ∈ **[1, 4]**, docking ≥ same per-target \(s_{\min}\) as hit; 3 seeds/protein (`benchmark/actives.csv`); sim **0.4** / **0.6** | 1000 | 0–2 | **Best docking score** among molecules that satisfy lead constraints (`lead.<protein>_04_0` … `_06_2`; see `benchmark/tasks.py`) |
-| **spec** | Docking on **6nzp** + antitarget (**7uyt, 5ut5, 7uyw, 4l00, 5khw**), QED, SA | 3000 | 0–2 | **Mean top-10 margin** — average of the ten largest (target docking − antitarget docking) gaps among constraint-passing molecules (`spec.6nzp_7uyt`, …); see `benchmark/metrics/task_metrics.py` (`k=10`) |
+| **hit** | **parp1, fa7, 5ht1b, braf, jak2**<br>QED ∈ **[0.5, 1]**, SA ∈ **[1, 5]**<br>Docking ≥ **10.0, 8.5, 8.7845, 10.3, 9.1** (same order) | 3000 | 0–9 | **Hit rate** — share of oracle calls that yield molecules meeting all property cutoffs |
+| **lead** | Same five proteins, each from 3 known actives (`benchmark/actives.csv`)<br>Similarity ≥ **0.4** or ≥ **0.6**<br>QED ∈ **[0.6, 1]**, SA ∈ **[1, 4]**<br>Docking ≥ that protein's hit floor | 1000 | 0–2 | **Best docking score** among molecules that satisfy lead constraints (`lead.<protein>_04_0` … `_06_2`; see `benchmark/tasks.py`) |
+| **spec** | **6nzp** against **7uyt, 5ut5, 7uyw, 4l00, 5khw**<br>QED ∈ **[0.4, 1]**, SA ∈ **[1, 4]**<br>Target docking ≥ **10.67** | 3000 | 0–2 | **Mean top-10 margin** — average of the ten largest (target docking − antitarget docking) gaps among constraint-passing molecules (`spec.6nzp_7uyt`, …); see `benchmark/metrics/task_metrics.py` (`k=10`) |
 
 Constraint details: `benchmark/tasks.py`, `benchmark/spec_tasks.py`. Metrics: `benchmark/metrics/task_metrics.py`.
 
 ## Algorithms
 
-| Method | Idea | Runner(s) | Conda env |
-|--------|------|-----------|-----------|
-| **genetic_chemllama** | ChemLlama proposes SMILES; a genetic pool keeps diverse high-scoring molecules; oracle scores QED/SA/docking each round | `genetic_chemllama/genetic_runner.py` | `cheml` |
-| **genmol** | Discrete diffusion model samples and mutates molecules; fragment vocabulary for hit/lead | `genmol/genmol_hit_runner.py`, `genmol_lead_runner.py` | `genmol` |
-| **saturn** | Prior/agent Mamba with RL, experience replay, and optional memory; JSON configs per task | `saturn/saturn_hit_runner.py`, `saturn_lead_runner.py` | `saturn` |
-| **genetic_gfn** | Genetic algorithm + GFlowNet over molecular graphs; multi-objective vector (docking, QED, SA, …) | `genetic_gfn/multi_objective/gen_gfn_hit_runner.py`, `gen_gfn_lead_runner.py` | `genetic_gfn` |
-| **reinvent4** | REINVENT4 staged RL (DAP augmented likelihood). De novo SMILES-RNN on hit/spec; **seeded** Mol2Mol / LibInvent on lead — the only method that takes the lead molecule as model input. Requires the docking HTTP service. See `reinvent4/README.md` | `reinvent4/reinvent_hit_runner.py`, `reinvent_lead_runner.py` | `reinvent4` |
+| Method | Runner(s) | Conda env |
+|--------|-----------|-----------|
+| **genetic_chemllama** | `genetic_chemllama/genetic_runner.py` | `cheml` |
+| **genmol** | `genmol/genmol_hit_runner.py`, `genmol_lead_runner.py` | `genmol` |
+| **saturn** | `saturn/saturn_hit_runner.py`, `saturn_lead_runner.py` | `saturn` |
+| **genetic_gfn** | `genetic_gfn/multi_objective/gen_gfn_hit_runner.py`, `gen_gfn_lead_runner.py` | `genetic_gfn` |
+| **reinvent4** | `reinvent4/reinvent_hit_runner.py`, `reinvent_lead_runner.py` | `reinvent4` |
+
+| Method | Idea |
+|--------|------|
+| **genetic_chemllama** | ChemLlama proposes SMILES; a genetic pool keeps diverse high-scoring molecules; oracle scores QED/SA/docking each round |
+| **genmol** | Discrete diffusion model samples and mutates molecules; fragment vocabulary for hit/lead |
+| **saturn** | Prior/agent Mamba with RL, experience replay, and optional memory; JSON configs per task |
+| **genetic_gfn** | Genetic algorithm + GFlowNet over molecular graphs; multi-objective vector (docking, QED, SA, …) |
+| **reinvent4** | REINVENT4 staged RL (DAP augmented likelihood). De novo SMILES-RNN on hit/spec; **seeded** Mol2Mol / LibInvent on lead — the only method that takes the lead molecule as model input. Requires the docking HTTP service. See `reinvent4/README.md` |
 
 **Category-best hyperparameters** (source of truth, including `exp-N` → grid mapping): **[`BEST_HPARAMS.md`](BEST_HPARAMS.md)**. Do not infer the freeze from a `best_*.yaml` filename.
 
