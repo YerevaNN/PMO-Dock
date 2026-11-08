@@ -16,7 +16,12 @@ import time
 from shutil import rmtree
 
 import numpy as np
-from openbabel import pybel
+
+# OpenBabel is imported lazily in DockingOracle.docking(). It is only needed to actually
+# run a dock, but this module also exports the receptor constants and predicates
+# (ANTITARGET_RECEPTORS, is_antitarget_receptor, default_exhaustiveness, ...) that clients
+# driving docking over HTTP need without a local OpenBabel. A module-level import would
+# make those unreachable in any env that has no OpenBabel, e.g. reinvent4/.
 
 
 # Antitarget receptors: one predict() call runs multiple stochastic docks (see below).
@@ -207,6 +212,8 @@ class DockingOracle:
         if docking_semaphore is not None:
             docking_semaphore.acquire()
         try:
+            from openbabel import pybel
+
             ms = list(pybel.readfile("mol", ligand_mol_file))
             m = ms[0]
             m.write("pdbqt", ligand_pdbqt_file, overwrite=True)

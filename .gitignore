@@ -60,3 +60,18 @@ notebooks
 *.slurm
 
 results/*
+# REINVENT4 checkout, priors and conda env live under /mnt/weka/$USER (see
+# reinvent4/env/setup.sh); these paths only appear if someone sets them locally.
+reinvent4/src/
+reinvent4/priors/
+
+# SLURM submission scripts that are part of an integration, unlike the ad-hoc *.slurm
+# files ignored above.
+!reinvent4/slurm/*.slurm
+
+# Experiment reports: working notes, run logs and analyses. See reports/README.md for
+# the layout. Kept out of git so the repo stays code-only.
+reports/
+
+.claude/
+CLAUDE.md
