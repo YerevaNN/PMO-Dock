@@ -38,6 +38,7 @@ jak2_0 = lead_seed_smiles("jak2", 0)
 jak2_1 = lead_seed_smiles("jak2", 1)
 jak2_2 = lead_seed_smiles("jak2", 2)
 
+from genetic.generation_backends import build_backend
 from genetic.genetic_utils import Entry, Pool, canonicalize
 #from utils import generate_random_number
 
@@ -388,17 +389,35 @@ def search(args):
     checkpoint_path = os.environ.get("HF_LOCAL_MODEL_DIR", "").strip() or str(args.model.checkpoint_path)
     tokenizer_path = os.environ.get("HF_LOCAL_TOKENIZER_DIR", "").strip() or str(args.model.tokenizer_path)
 
-    # Load model with memory-efficient settings
-    # Use device_map dict format for explicit single-device placement
-    model = AutoModelForCausalLM.from_pretrained(
-        checkpoint_path,
-        torch_dtype=torch.bfloat16,
-        low_cpu_mem_usage=True,
-        device_map={"": args.device},  # Explicitly map all layers to the specified device
-        attn_implementation="sdpa",  # Use efficient SDPA attention
-        local_files_only=bool(os.environ.get("HF_LOCAL_MODEL_DIR", "").strip()),
+    # Generation backend: "hf" (in-process transformers, the baseline and the
+    # default) or "vllm" (shared OpenAI-compatible server, no local weights).
+    # Unset means "hf", so every existing config keeps its current behaviour.
+    backend_name = str(
+        OmegaConf.select(args, "generation_backend", default=None)
+        or os.environ.get("GENERATION_BACKEND", "hf")
+    ).strip().lower()
+    vllm_url = OmegaConf.select(args, "generation_backend_url", default=None) or os.environ.get(
+        "VLLM_SERVICE_URL", ""
     )
-    model.eval()  # Set to eval mode to disable gradients and reduce memory
+
+    model = None
+    if backend_name == "hf":
+        # Load model with memory-efficient settings
+        # Use device_map dict format for explicit single-device placement
+        model = AutoModelForCausalLM.from_pretrained(
+            checkpoint_path,
+            torch_dtype=torch.bfloat16,
+            low_cpu_mem_usage=True,
+            device_map={"": args.device},  # Explicitly map all layers to the specified device
+            attn_implementation="sdpa",  # Use efficient SDPA attention
+            local_files_only=bool(os.environ.get("HF_LOCAL_MODEL_DIR", "").strip()),
+        )
+        model.eval()  # Set to eval mode to disable gradients and reduce memory
+    else:
+        # The weights live in the vLLM server process, not here. Skipping the
+        # load is most of the point: N seed processes no longer hold N copies.
+        logger.info(f"Skipping local model load; generation_backend={backend_name}")
+
     tokenizer = PreTrainedTokenizerFast.from_pretrained(
         tokenizer_path,
         padding_side="left",
@@ -407,6 +426,34 @@ def search(args):
     pad_token_id = tokenizer.convert_tokens_to_ids(str(args.model.pad_token))
     if pad_token_id != tokenizer.unk_token_id:
         tokenizer.pad_token_id = pad_token_id
+
+    gen_backend = build_backend(
+        backend_name,
+        model=model,
+        tokenizer=tokenizer,
+        device=args.device,
+        model_args=args.model,
+        vllm_url=vllm_url,
+        vllm_model_name=OmegaConf.select(args, "generation_backend_model", default=None),
+        stop_at_mol_end=bool(
+            OmegaConf.select(args, "generation_stop_at_mol_end", default=True)
+        ),
+        request_batch_size=int(
+            OmegaConf.select(args, "generation_request_batch_size", default=0) or 0
+        ),
+        # A per-REQUEST seed covers every prompt in that request, so one seed is
+        # shared by all prompts of an iteration and correlates their sampling.
+        # Measured on the 400-prompt parity check: uniqueness 0.8355 -> 0.7378
+        # and throughput 21.5x -> 12.9x. Reproducibility belongs on the SERVER
+        # (vllm --seed), which seeds the engine once without tying prompts
+        # together. Opt in only to replay one exact request while debugging.
+        seed=(
+            seed
+            if bool(OmegaConf.select(args, "generation_request_seed", default=False))
+            else None
+        ),
+    )
+    logger.info(f"Generation backend: {gen_backend.name}")
 
     # Optional: HTTP DockingVina service URL. If absent, property_computers uses local quickvina.
     vina_url = OmegaConf.select(args, "vina_url", default=None)
@@ -453,28 +500,13 @@ def search(args):
             )
 
             gen_config = OmegaConf.to_container(args.generation)
-            gen_batch_size = getattr(args.model, 'gen_batch_size', 32)
-            if gen_batch_size is None or gen_batch_size > len(prompts):
-                gen_batch_size = len(prompts)
 
         with timer.phase("gen_model"):
-            all_generated_tokens = []
-            for start_idx in range(0, len(prompts), gen_batch_size):
-                end_idx = min(start_idx + gen_batch_size, len(prompts))
-                batch_prompts = prompts[start_idx:end_idx]
-
-                data = tokenizer(batch_prompts, return_tensors="pt", padding=True).to(args.device)
-
-                generated_texts = model.generate(
-                    **data,
-                    **gen_config
-                )
-                batch_generated_tokens = tokenizer.batch_decode(generated_texts)
-                all_generated_tokens.extend(batch_generated_tokens)
-
-                del data
-                del generated_texts
-                torch.cuda.empty_cache()
+            # Batching lives in the backend now: HFBackend reproduces the loop
+            # that used to sit here verbatim (same gen_batch_size rule, same
+            # batch_decode, same empty_cache), and VLLMServerBackend batches on
+            # the server instead. Both return prompt + completion.
+            all_generated_tokens = gen_backend.generate(prompts, gen_config)
 
         with timer.phase("gen_post"):
             generated_tokens = all_generated_tokens

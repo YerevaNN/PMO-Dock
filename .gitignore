@@ -60,3 +60,7 @@ notebooks
 *.slurm
 
 results/*
+
+# SLURM submission scripts that are part of an integration, unlike the ad-hoc *.slurm
+# files ignored above.
+!genetic_chemllama/slurm/*.slurm
