@@ -103,6 +103,35 @@ TARGET_BOX = {
 }
 
 
+def _allocated_cpus() -> int:
+    """CPUs this process may actually run on.
+
+    multiprocessing.cpu_count() reports the whole machine, which on a shared
+    research / research_cpu node is up to 224 regardless of what SLURM
+    allocated -- so an 8-CPU job would size its semaphore for 224. SLURM
+    allocates via cpuset, which sched_getaffinity does see.
+    """
+    try:
+        return max(1, len(os.sched_getaffinity(0)))
+    except (AttributeError, OSError):
+        return max(1, multiprocessing.cpu_count())
+
+
+def _default_max_concurrent(num_cpu_dock: int) -> int:
+    """Semaphore size when MAX_CONCURRENT_DOCKING is not set.
+
+    1.5x allocated cores, not 0.9x. QuickVina at --cpu 1 spends enough time
+    off CPU (gen_3d handoff, file I/O, process teardown) that keeping more
+    docks in flight than there are cores still pays: throughput measured flat
+    from ~1.3x to ~2.5x node demand, and on a 96-CPU oracle service 1.5x beat
+    1.0x by 23% at five clients with no loss at ten.
+
+    Split out of _init_semaphore so the sizing rule can be tested without
+    constructing a DockingOracle (which needs grids and a real target).
+    """
+    return max(1, int(_allocated_cpus() / num_cpu_dock * 1.5))
+
+
 @cache
 def quickvina_predictor(target, exhaustiveness=None):
     return DockingOracle(target, exhaustiveness=exhaustiveness)
@@ -127,6 +156,15 @@ class DockingOracle:
             self.exhaustiveness = exhaustiveness
         else:
             self.exhaustiveness = default_exhaustiveness(target)
+        # Deliberately still 2, unlike the Even-More-PMO oracle this concurrency
+        # work was ported from, where the default moved to 1. That change was
+        # justified there by "every launcher already exports 1" plus a
+        # determinism probe showing qvina02 races at --cpu > 1. Neither holds
+        # here: no launcher in this repo exports NUM_CPU_DOCK, there is no such
+        # probe, and this repo's spec / antitarget targets dock at
+        # exhaustiveness 8 where --cpu 2 is what every existing number was
+        # produced under. Moving it is a change to what the oracle does, not a
+        # concurrency tuning, so it is left for its own decision.
         self.num_cpu_dock = int(os.environ.get("NUM_CPU_DOCK", 2))
         self._init_semaphore()
         self.num_modes = 10
@@ -135,12 +173,11 @@ class DockingOracle:
         self.temp_dir = self._make_temp_dir()
 
     def _init_semaphore(self):
-        available = multiprocessing.cpu_count()
         max_dock = os.environ.get("MAX_CONCURRENT_DOCKING")
         if max_dock is not None:
             max_dock = int(max_dock)
         else:
-            max_dock = max(1, int(available / self.num_cpu_dock * 0.9))
+            max_dock = _default_max_concurrent(self.num_cpu_dock)
         with DockingOracle._semaphore_lock:
             if DockingOracle._docking_semaphore is None:
                 DockingOracle._docking_semaphore = threading.Semaphore(max_dock)
