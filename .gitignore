@@ -69,6 +69,7 @@ reinvent4/priors/
 # files ignored above.
 !reinvent4/slurm/*.slurm
 !genetic_chemllama/slurm/*.slurm
+!benchmark/slurm/*.slurm
 
 # Experiment reports: working notes, run logs and analyses. See reports/README.md for
 # the layout. Kept out of git so the repo stays code-only.
